@@ -84,10 +84,13 @@ export async function syncUser(user: AppUser, opts: { full?: boolean } = {}): Pr
         ? new Date(upserted!.last_insights_sync_at).getTime()
         : 0;
       const ageHours = (Date.now() - lastSync) / 36e5;
-      if (!isKnown || ageHours > STALE_INSIGHTS_HOURS) {
+      const shouldRefresh = opts.full || !isKnown || ageHours > STALE_INSIGHTS_HOURS;
+      console.log(`[sync] post ${p.id} known=${isKnown} ageH=${ageHours.toFixed(1)} refresh=${shouldRefresh}`);
+      if (shouldRefresh) {
         try {
           const ins = await getPostInsights(p.id, token);
-          await db.from("post_insights").upsert({
+          console.log(`[sync] insights ${p.id} views=${ins.views} likes=${ins.likes}`);
+          const { error: upInsErr } = await db.from("post_insights").upsert({
             post_id: upserted!.id,
             views: ins.views,
             likes: ins.likes,
@@ -97,7 +100,9 @@ export async function syncUser(user: AppUser, opts: { full?: boolean } = {}): Pr
             shares: ins.shares,
             snapshot_at: new Date().toISOString(),
           });
-          await db.from("post_insights_history").insert({
+          if (upInsErr) throw new Error(`post_insights upsert: ${upInsErr.message}`);
+
+          const { error: histErr } = await db.from("post_insights_history").insert({
             post_id: upserted!.id,
             views: ins.views,
             likes: ins.likes,
@@ -106,15 +111,19 @@ export async function syncUser(user: AppUser, opts: { full?: boolean } = {}): Pr
             quotes: ins.quotes,
             shares: ins.shares,
           });
-          await db
+          if (histErr) throw new Error(`post_insights_history insert: ${histErr.message}`);
+
+          const { error: touchErr } = await db
             .from("posts")
             .update({ last_insights_sync_at: new Date().toISOString() })
             .eq("id", upserted!.id);
+          if (touchErr) throw new Error(`posts touch: ${touchErr.message}`);
+
           result.insights_refreshed++;
         } catch (e) {
-          result.errors.push(
-            `insights ${p.id}: ${e instanceof Error ? e.message : String(e)}`,
-          );
+          const msg = e instanceof Error ? e.message : String(e);
+          console.log(`[sync] insights ${p.id} FAILED: ${msg}`);
+          result.errors.push(`insights ${p.id}: ${msg}`);
         }
       }
 

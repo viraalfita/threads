@@ -1,0 +1,145 @@
+{
+  "info": {
+    "name": "Threads Graph API — ThreadLens",
+    "description": "Endpoints yang dipakai app. Isi variable access_token, threads_user_id, dan post_id dulu di tab 'Variables' collection ini.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://graph.threads.net/v1.0",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string",
+      "description": "Long-lived Threads access token (plaintext). Ambil dari DB (decrypt) atau fresh dari OAuth."
+    },
+    {
+      "key": "threads_user_id",
+      "value": "34567018536277820",
+      "type": "string",
+      "description": "Threads user id (bukan UUID di DB). Yang ini advertiserbhskin03."
+    },
+    {
+      "key": "post_id",
+      "value": "",
+      "type": "string",
+      "description": "threads_post_id dari DB, e.g. 18148552705486899"
+    }
+  ],
+  "item": [
+    {
+      "name": "Me — user info",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/me?fields=id,username,name,threads_profile_picture_url,threads_biography&access_token={{access_token}}",
+          "host": ["{{base_url}}"],
+          "path": ["me"],
+          "query": [
+            { "key": "fields", "value": "id,username,name,threads_profile_picture_url,threads_biography" },
+            { "key": "access_token", "value": "{{access_token}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "List my posts",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/me/threads?fields=id,text,media_type,media_url,thumbnail_url,permalink,timestamp,username,is_quote_post&limit=25&access_token={{access_token}}",
+          "host": ["{{base_url}}"],
+          "path": ["me", "threads"],
+          "query": [
+            { "key": "fields", "value": "id,text,media_type,media_url,thumbnail_url,permalink,timestamp,username,is_quote_post" },
+            { "key": "limit", "value": "25" },
+            { "key": "access_token", "value": "{{access_token}}" }
+          ]
+        },
+        "description": "List 25 post terbaru. Copy salah satu id ke variable post_id untuk cek insights."
+      }
+    },
+    {
+      "name": "Post insights",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/{{post_id}}/insights?metric=views,likes,replies,reposts,quotes,shares&access_token={{access_token}}",
+          "host": ["{{base_url}}"],
+          "path": ["{{post_id}}", "insights"],
+          "query": [
+            { "key": "metric", "value": "views,likes,replies,reposts,quotes,shares" },
+            { "key": "access_token", "value": "{{access_token}}" }
+          ]
+        },
+        "description": "Insights per post. Response format: { data: [{ name: 'views', period: 'lifetime', values: [{ value: 14 }], total_value?: { value: 14 } }, ...] }"
+      }
+    },
+    {
+      "name": "Post insights — single metric (views)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/{{post_id}}/insights?metric=views&access_token={{access_token}}",
+          "host": ["{{base_url}}"],
+          "path": ["{{post_id}}", "insights"],
+          "query": [
+            { "key": "metric", "value": "views" },
+            { "key": "access_token", "value": "{{access_token}}" }
+          ]
+        },
+        "description": "Isolate satu metric buat debug."
+      }
+    },
+    {
+      "name": "Account insights",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/{{threads_user_id}}/threads_insights?metric=views,likes,replies,reposts,quotes,followers_count&access_token={{access_token}}",
+          "host": ["{{base_url}}"],
+          "path": ["{{threads_user_id}}", "threads_insights"],
+          "query": [
+            { "key": "metric", "value": "views,likes,replies,reposts,quotes,followers_count" },
+            { "key": "access_token", "value": "{{access_token}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Debug token — check scope & user",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/debug_token?input_token={{access_token}}&access_token={{access_token}}",
+          "host": ["{{base_url}}"],
+          "path": ["debug_token"],
+          "query": [
+            { "key": "input_token", "value": "{{access_token}}" },
+            { "key": "access_token", "value": "{{access_token}}" }
+          ]
+        },
+        "description": "Cek expiry, scopes, user_id yang terasosiasi."
+      }
+    },
+    {
+      "name": "Refresh long-lived token",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/refresh_access_token?grant_type=th_refresh_token&access_token={{access_token}}",
+          "host": ["{{base_url}}"],
+          "path": ["refresh_access_token"],
+          "query": [
+            { "key": "grant_type", "value": "th_refresh_token" },
+            { "key": "access_token", "value": "{{access_token}}" }
+          ]
+        },
+        "description": "Perpanjang 60 hari. Hanya bisa setelah token ≥ 24 jam umurnya."
+      }
+    }
+  ]
+}
