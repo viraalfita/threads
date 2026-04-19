@@ -31,9 +31,9 @@ jobs:
 
       - name: Prepare deploy package
         run: |
-          mkdir -p deploy/.next
-          cp -r .next/standalone deploy/.next/
-          cp -r .next/static deploy/.next/
+          mkdir -p deploy/next_static
+          cp -r .next/standalone/* deploy/
+          cp -r .next/static deploy/next_static/
           if [ -d public ]; then cp -r public deploy/public; fi
 
       - name: Upload app to VPS
@@ -64,6 +64,13 @@ jobs:
             cp -r /root/threadlens-release/* /root/threadlens/
             cd /root/threadlens
 
+            mkdir -p .next
+            rm -rf .next/static
+            if [ -d next_static/static ]; then
+              cp -r next_static/static .next/static
+              rm -rf next_static
+            fi
+
             pm2 describe threadlens > /dev/null 2>&1 && pm2 delete threadlens || true
-            PORT=3001 pm2 start .next/standalone/server.js --name threadlens
+            PORT=3001 pm2 start server.js --name threadlens
             pm2 save
