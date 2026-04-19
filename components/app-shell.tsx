@@ -1,12 +1,18 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { SidebarNav } from "@/components/sidebar-nav";
-import { Topbar } from "@/components/topbar";
 
 const BARE_ROUTES = ["/login", "/register"];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  sidebar,
+  topbar,
+}: {
+  children: React.ReactNode;
+  sidebar: React.ReactNode;
+  topbar: React.ReactNode;
+}) {
   const pathname = usePathname();
   const bare = BARE_ROUTES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
@@ -16,9 +22,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <SidebarNav />
+      {sidebar}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Topbar />
+        {topbar}
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>
