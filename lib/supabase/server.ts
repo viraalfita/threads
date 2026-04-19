@@ -7,6 +7,10 @@ function build() {
   return createClient(env.supabaseUrl(), env.supabaseServiceRole(), {
     auth: { autoRefreshToken: false, persistSession: false },
     db: { schema: "threadlens" },
+    global: {
+      fetch: (input, init) =>
+        fetch(input, { ...init, cache: "no-store" }),
+    },
   });
 }
 

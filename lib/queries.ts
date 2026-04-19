@@ -49,7 +49,7 @@ export async function listPosts(userId: string, opts: { limit?: number; sinceDay
   const byId = new Map<string, any>();
   (insights ?? []).forEach((i: any) => byId.set(i.post_id, i));
 
-  return posts.map((r: any) => {
+  const out = posts.map((r: any) => {
     const ins = byId.get(r.id);
     return {
       id: r.id,
@@ -74,6 +74,8 @@ export async function listPosts(userId: string, opts: { limit?: number; sinceDay
         : null,
     };
   });
+  console.log(`[listPosts] mapped=${out.length} sample=${JSON.stringify({ id: out[0]?.id, views: out[0]?.insights?.views })}`);
+  return out;
 }
 
 export async function getPost(userId: string, postId: string): Promise<PostRow | null> {
