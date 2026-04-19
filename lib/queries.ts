@@ -35,6 +35,7 @@ export async function listPosts(userId: string, opts: { limit?: number; sinceDay
   }
   if (opts.limit) q.limit(opts.limit);
   const { data, error } = await q;
+  console.log(`[listPosts] userId=${userId} rows=${data?.length ?? 0} error=${error?.message ?? "none"}`);
   if (error) throw new Error(`listPosts: ${error.message}`);
   return (data ?? []).map((r: any) => ({
     id: r.id,
