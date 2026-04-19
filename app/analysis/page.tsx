@@ -34,7 +34,7 @@ export default async function AnalysisPage() {
         <TabsList>
           <TabsTrigger value="pattern">Pattern Detection</TabsTrigger>
           <TabsTrigger value="history">Riwayat</TabsTrigger>
-          <TabsTrigger value="performance" disabled>Performance (per post)</TabsTrigger>
+          <TabsTrigger value="performance">Performance (per post)</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pattern">
