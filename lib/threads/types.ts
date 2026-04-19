@@ -1,4 +1,5 @@
 export type ThreadsMediaType =
+  | "TEXT_POST"
   | "TEXT"
   | "IMAGE"
   | "VIDEO"

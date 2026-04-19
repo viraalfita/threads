@@ -60,7 +60,7 @@ export async function syncUser(user: AppUser, opts: { full?: boolean } = {}): Pr
             user_id: user.id,
             threads_post_id: p.id,
             text: p.text ?? null,
-            media_type: p.media_type ?? "TEXT",
+            media_type: p.media_type ?? "TEXT_POST",
             media_url: p.media_url ?? null,
             thumbnail_url: p.thumbnail_url ?? null,
             permalink: p.permalink ?? null,
