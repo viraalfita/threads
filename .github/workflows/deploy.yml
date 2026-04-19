@@ -29,10 +29,10 @@ jobs:
       - name: Build app
         run: npm run build
 
-      - name: Prepare standalone package
+      - name: Prepare deploy package
         run: |
           mkdir -p deploy/.next
-          cp -r .next/standalone/* deploy/
+          cp -r .next/standalone deploy/.next/
           cp -r .next/static deploy/.next/
           if [ -d public ]; then cp -r public deploy/public; fi
 
@@ -54,17 +54,16 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -e
-      
+
             export NVM_DIR="/root/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-      
             export PATH="$NVM_DIR/versions/node/v22.22.1/bin:$PATH"
-      
+
             mkdir -p /root/threadlens
             find /root/threadlens -mindepth 1 ! -name '.env' ! -name '.env.local' -delete || true
             cp -r /root/threadlens-release/* /root/threadlens/
             cd /root/threadlens
-      
-            pm2 delete threadlens || true
-            PORT=3001 pm2 start server.js --name threadlens
+
+            pm2 describe threadlens > /dev/null 2>&1 && pm2 delete threadlens || true
+            PORT=3001 pm2 start .next/standalone/server.js --name threadlens
             pm2 save
