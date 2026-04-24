@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/lib/user";
+import { getActiveUser } from "@/lib/user";
 import { chat } from "@/lib/llm/openrouter";
 import { buildPerformancePrompt } from "@/lib/analysis/prompts";
 import { env } from "@/lib/env";
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 }
 
 async function handle(req: NextRequest) {
-  const user = await getCurrentUser();
+  const user = await getActiveUser();
   if (!user) return NextResponse.json({ error: "not_connected" }, { status: 400 });
 
   const { post_id } = await req.json();

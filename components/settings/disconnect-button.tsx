@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 
-export function DisconnectButton() {
+export function DisconnectButton({ userId, label }: { userId?: string; label?: string } = {}) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
@@ -14,7 +14,11 @@ export function DisconnectButton() {
   async function disconnect() {
     setBusy(true);
     try {
-      const res = await fetch(`/api/auth/threads/disconnect`, { method: "POST" });
+      const res = await fetch(`/api/auth/threads/disconnect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userId ? { userId } : {}),
+      });
       const json = await res.json();
       if (!res.ok) {
         toast.error(json.error ?? "Disconnect failed");
@@ -32,7 +36,7 @@ export function DisconnectButton() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="destructive" size="sm">
-          <Trash2 className="h-4 w-4" /> Disconnect
+          <Trash2 className="h-4 w-4" /> {label ?? "Disconnect"}
         </Button>
       </DialogTrigger>
       <DialogContent>

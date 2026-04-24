@@ -3,6 +3,7 @@ import { jwtVerify } from "jose";
 import { SESSION_COOKIE_NAME } from "@/lib/session";
 
 const PUBLIC_EXACT = new Set<string>([
+  "/",
   "/login",
   "/register",
   "/api/auth/login",
@@ -11,7 +12,7 @@ const PUBLIC_EXACT = new Set<string>([
 ]);
 
 const PUBLIC_PREFIX = [
-  "/api/auth/threads",
+  "/api/auth/threads/callback",
   "/api/cron",
   "/_next",
   "/favicon",

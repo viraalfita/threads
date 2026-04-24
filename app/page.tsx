@@ -1,139 +1,156 @@
-import { getCurrentUser } from "@/lib/user";
-import { getDashboardSummary, getSyncState } from "@/lib/queries";
-import { EmptyConnect } from "@/components/empty-connect";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Eye, Heart, MessageCircle, Repeat2, Users, TrendingUp } from "lucide-react";
-import { KpiCard } from "@/components/dashboard/kpi-card";
-import { PerfChart } from "@/components/dashboard/perf-chart";
-import { PeriodSelect } from "@/components/dashboard/period-select";
-import { SyncButton } from "@/components/dashboard/sync-button";
-import { formatDateTime, formatNumber, formatPercent, truncate } from "@/lib/utils";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { AtSign, BarChart3, Sparkles, RefreshCw, LogIn } from "lucide-react";
+import { getSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: { period?: string };
-}) {
-  const user = await getCurrentUser().catch(() => null);
-  if (!user) return <EmptyConnect />;
-
-  const period = Math.max(7, Math.min(90, Number(searchParams.period) || 30));
-  const [summary, sync] = await Promise.all([
-    getDashboardSummary(user.id, period),
-    getSyncState(user.id),
-  ]);
+export default async function LandingPage() {
+  const session = await getSession();
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            Last sync: {formatDateTime(sync?.last_succeeded_at)}{" "}
-            {sync?.status === "running" && <span className="text-amber-500">(running…)</span>}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <PeriodSelect value={String(period)} />
-          <SyncButton />
-        </div>
-      </div>
-
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Total post" value={formatNumber(summary.totalPosts)} icon={TrendingUp} />
-        <KpiCard label="Total views" value={formatNumber(summary.totalViews)} icon={Eye} />
-        <KpiCard
-          label="Avg engagement"
-          value={formatPercent(summary.avgEngagementRate)}
-          icon={Heart}
-          hint={`${formatNumber(summary.totalLikes)} likes`}
-        />
-        <KpiCard
-          label="Followers"
-          value={summary.followers != null ? formatNumber(summary.followers) : "—"}
-          icon={Users}
-          hint={`${formatNumber(summary.totalReplies)} replies, ${formatNumber(summary.totalReposts)} reposts`}
-        />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Performa {period} hari terakhir</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {summary.byDay.some((d) => d.views > 0) ? (
-            <PerfChart data={summary.byDay} />
-          ) : (
-            <div className="h-72 flex items-center justify-center text-sm text-muted-foreground">
-              Belum ada data. Klik &quot;Sync now&quot; untuk menarik data dari Threads.
+    <div className="min-h-screen flex flex-col">
+      <header className="border-b">
+        <div className="mx-auto max-w-6xl w-full flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <AtSign className="h-4 w-4" />
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <span className="font-semibold">ThreadLens</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {session ? (
+              <Button asChild>
+                <Link href="/dashboard">
+                  <BarChart3 className="h-4 w-4" /> Buka Dashboard
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link href="/login">
+                    <LogIn className="h-4 w-4" /> Masuk
+                  </Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/register">Daftar</Link>
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </header>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TopList title="Top by engagement rate" rows={summary.topByEngagement} mode="er" />
-        <TopList title="Top by views" rows={summary.topByViews} mode="views" />
-      </div>
+      <main className="flex-1">
+        <section className="mx-auto max-w-6xl w-full px-6 py-16 md:py-24">
+          <div className="max-w-2xl space-y-5">
+            <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
+              Analisa performa Threads. Dengan bantuan AI.
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Tarik semua post + insights dari akun Threads kamu, pantau engagement rate,
+              dan dapatkan analisa pola dengan LLM — semua dari satu dashboard.
+            </p>
+            <div className="flex items-center gap-3 pt-2">
+              {session ? (
+                <Button size="lg" asChild>
+                  <Link href="/dashboard">Buka Dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button size="lg" asChild>
+                    <Link href="/register">Mulai gratis</Link>
+                  </Button>
+                  <Button size="lg" variant="outline" asChild>
+                    <Link href="/login">Saya sudah punya akun</Link>
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t">
+          <div className="mx-auto max-w-6xl w-full px-6 py-16 grid gap-8 md:grid-cols-3">
+            <Feature
+              icon={RefreshCw}
+              title="Sync otomatis"
+              body="Tarik semua post + insights (views, likes, replies, reposts, quotes, shares) lewat Threads Graph API resmi."
+            />
+            <Feature
+              icon={BarChart3}
+              title="Metrics lengkap"
+              body="Dashboard dengan breakdown per hari, top posts by engagement rate / views, dan tabel post yang sortable + exportable ke CSV."
+            />
+            <Feature
+              icon={Sparkles}
+              title="AI insights"
+              body="Analisa performa per post atau deteksi pola antara top vs bottom performer — dapat rekomendasi konkret yang actionable."
+            />
+          </div>
+        </section>
+
+        <section className="border-t bg-muted/30">
+          <div className="mx-auto max-w-6xl w-full px-6 py-16">
+            <h2 className="text-2xl font-semibold mb-6">Cara kerja</h2>
+            <ol className="space-y-4 text-sm max-w-xl">
+              <Step num={1} text="Daftar akun ThreadLens (gratis)." />
+              <Step num={2} text="Connect akun Threads lewat OAuth — aman, nggak perlu bagikan password." />
+              <Step num={3} text="Sync data pertama, lalu refresh kapan aja buat update insights." />
+              <Step num={4} text="Mulai analisa: dashboard visual + AI explanation sesuai konten kamu." />
+            </ol>
+            <div className="pt-8">
+              {session ? (
+                <Button asChild>
+                  <Link href="/dashboard">Buka Dashboard</Link>
+                </Button>
+              ) : (
+                <Button asChild>
+                  <Link href="/register">Mulai sekarang</Link>
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t">
+        <div className="mx-auto max-w-6xl w-full px-6 py-6 text-xs text-muted-foreground flex items-center justify-between">
+          <span>© {new Date().getFullYear()} ThreadLens</span>
+          <span>v0.1 MVP</span>
+        </div>
+      </footer>
     </div>
   );
 }
 
-function TopList({
+function Feature({
+  icon: Icon,
   title,
-  rows,
-  mode,
+  body,
 }: {
+  icon: React.ComponentType<{ className?: string }>;
   title: string;
-  rows: Awaited<ReturnType<typeof getDashboardSummary>>["topByEngagement"];
-  mode: "er" | "views";
+  body: string;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {rows.length === 0 && <div className="text-sm text-muted-foreground">Tidak ada data.</div>}
-        {rows.map((p, i) => (
-          <Link
-            key={p.id}
-            href={`/posts/${p.id}`}
-            className="flex items-start gap-3 rounded-md p-2 hover:bg-accent/50 transition-colors"
-          >
-            <div className="text-xs font-mono text-muted-foreground pt-0.5 w-6">#{i + 1}</div>
-            <div className="flex-1 text-sm">{truncate(p.text, 120) || "(tanpa teks)"}</div>
-            <div className="text-right text-xs">
-              <div className="font-medium">
-                {mode === "er"
-                  ? formatPercent(p.insights?.engagement_rate)
-                  : formatNumber(p.insights?.views)}
-              </div>
-              <div className="text-muted-foreground flex gap-2">
-                <span className="inline-flex items-center gap-1">
-                  <Eye className="h-3 w-3" />
-                  {formatNumber(p.insights?.views)}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Heart className="h-3 w-3" />
-                  {formatNumber(p.insights?.likes)}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <MessageCircle className="h-3 w-3" />
-                  {formatNumber(p.insights?.replies)}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Repeat2 className="h-3 w-3" />
-                  {formatNumber(p.insights?.reposts)}
-                </span>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </CardContent>
-    </Card>
+    <div className="space-y-2">
+      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <Icon className="h-5 w-5" />
+      </div>
+      <h3 className="font-semibold">{title}</h3>
+      <p className="text-sm text-muted-foreground">{body}</p>
+    </div>
+  );
+}
+
+function Step({ num, text }: { num: number; text: string }) {
+  return (
+    <li className="flex gap-3">
+      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+        {num}
+      </div>
+      <span className="pt-0.5">{text}</span>
+    </li>
   );
 }

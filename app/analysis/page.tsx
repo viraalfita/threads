@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/user";
+import { getActiveUser } from "@/lib/user";
 import { EmptyConnect } from "@/components/empty-connect";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,7 +10,7 @@ import { formatDateTime } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function AnalysisPage() {
-  const user = await getCurrentUser().catch(() => null);
+  const user = await getActiveUser().catch(() => null);
   if (!user) return <EmptyConnect />;
 
   const db = supabaseAdmin();

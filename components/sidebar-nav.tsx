@@ -5,7 +5,7 @@ import { LayoutDashboard, ListOrdered, Sparkles, Settings, AtSign } from "lucide
 import { cn } from "@/lib/utils";
 
 const items = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/posts", label: "Posts", icon: ListOrdered },
   { href: "/analysis", label: "AI Analysis", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -15,17 +15,16 @@ export function SidebarNav() {
   const pathname = usePathname();
   return (
     <aside className="hidden md:flex md:w-60 md:flex-col border-r bg-card">
-      <div className="flex h-14 items-center gap-2 px-4 border-b">
+      <Link href="/dashboard" className="flex h-14 items-center gap-2 px-4 border-b">
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
           <AtSign className="h-4 w-4" />
         </div>
         <div className="font-semibold">ThreadLens</div>
-      </div>
+      </Link>
       <nav className="flex-1 space-y-1 p-2">
         {items.map((item) => {
           const Icon = item.icon;
-          const active =
-            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.href}

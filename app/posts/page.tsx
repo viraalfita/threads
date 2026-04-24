@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/user";
+import { getActiveUser } from "@/lib/user";
 import { listPosts } from "@/lib/queries";
 import { EmptyConnect } from "@/components/empty-connect";
 import { PostTable } from "@/components/posts/post-table";
@@ -7,7 +7,7 @@ import { SyncButton } from "@/components/dashboard/sync-button";
 export const dynamic = "force-dynamic";
 
 export default async function PostsPage() {
-  const user = await getCurrentUser().catch(() => null);
+  const user = await getActiveUser().catch(() => null);
   if (!user) return <EmptyConnect />;
   const rows = await listPosts(user.id, { limit: 500 });
   return (

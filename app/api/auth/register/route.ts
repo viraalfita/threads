@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { countAdmins, createAdmin } from "@/lib/admin";
+import { createAdmin, getAdminByEmail } from "@/lib/admin";
 import { SESSION_COOKIE_NAME, sessionCookieOptions, signSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +18,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "password_min_8_chars" }, { status: 400 });
     }
 
-    if ((await countAdmins()) > 0) {
-      return NextResponse.json({ error: "registration_closed" }, { status: 403 });
+    const existing = await getAdminByEmail(email);
+    if (existing) {
+      return NextResponse.json({ error: "email_already_registered" }, { status: 409 });
     }
 
     const admin = await createAdmin(email, password);

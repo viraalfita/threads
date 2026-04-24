@@ -8,6 +8,8 @@ import {
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { encryptToken } from "@/lib/crypto";
 import { env } from "@/lib/env";
+import { getSession } from "@/lib/session";
+import { ACTIVE_ACCOUNT_COOKIE } from "@/lib/user";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +35,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${env.appUrl()}/settings?error=state_mismatch`);
   }
 
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.redirect(`${env.appUrl()}/login?error=session_expired`);
+  }
+
   try {
     const short = await exchangeCodeForShortToken(code);
     const long = await exchangeForLongLivedToken(short.access_token);
@@ -46,6 +53,7 @@ export async function GET(req: NextRequest) {
       .from("users")
       .upsert(
         {
+          admin_id: session.sub,
           threads_user_id: me.id,
           username: me.username ?? null,
           name: me.name ?? null,
@@ -64,10 +72,16 @@ export async function GET(req: NextRequest) {
     // Initialize sync_state row (ignore if already exists)
     await db.from("sync_state").upsert({ user_id: data!.id, status: "idle" });
 
-    const res = NextResponse.redirect(
-      `${env.appUrl()}/settings?connected=1&uid=${encodeURIComponent(data!.id)}`,
-    );
+    const res = NextResponse.redirect(`${env.appUrl()}/settings?connected=1`);
     res.cookies.delete("threads_oauth_state");
+    // Make the newly connected account active
+    res.cookies.set(ACTIVE_ACCOUNT_COOKIE, data!.id, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
     return res;
   } catch (e) {
     const msg = e instanceof Error ? e.message : "oauth_callback_failed";

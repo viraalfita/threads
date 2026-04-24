@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { countAdmins } from "@/lib/admin";
 import { getSession } from "@/lib/session";
 import { LoginForm } from "@/components/auth/login-form";
 import Link from "next/link";
@@ -7,9 +6,7 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
-  if (await getSession()) redirect("/");
-  const hasAdmin = (await countAdmins()) > 0;
-  if (!hasAdmin) redirect("/register");
+  if (await getSession()) redirect("/dashboard");
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -20,7 +17,7 @@ export default async function LoginPage() {
         </div>
         <LoginForm />
         <p className="text-center text-xs text-muted-foreground">
-          Lupa password? Hubungi admin DB untuk reset manual.{" "}
+          Belum punya akun?{" "}
           <Link href="/register" className="underline">
             Daftar
           </Link>

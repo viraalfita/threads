@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 
-const BARE_ROUTES = ["/login", "/register"];
+const BARE_ROUTES = ["/", "/login", "/register"];
 
 export function AppShell({
   children,
@@ -14,7 +14,7 @@ export function AppShell({
   topbar: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const bare = BARE_ROUTES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const bare = pathname === "/" || BARE_ROUTES.some((p) => p !== "/" && (pathname === p || pathname.startsWith(`${p}/`)));
 
   if (bare) {
     return <main className="min-h-screen">{children}</main>;

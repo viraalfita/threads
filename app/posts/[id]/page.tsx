@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/user";
+import { getActiveUser } from "@/lib/user";
 import { getPost } from "@/lib/queries";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { PerformanceButton } from "@/components/analysis/performance-button";
 export const dynamic = "force-dynamic";
 
 export default async function PostDetailPage({ params }: { params: { id: string } }) {
-  const user = await getCurrentUser().catch(() => null);
+  const user = await getActiveUser().catch(() => null);
   if (!user) return notFound();
   const post = await getPost(user.id, params.id);
   if (!post) return notFound();

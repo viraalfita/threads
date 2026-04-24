@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/lib/user";
+import { getActiveUser } from "@/lib/user";
 import { chat } from "@/lib/llm/openrouter";
 import { buildPatternPrompt } from "@/lib/analysis/prompts";
 import { env } from "@/lib/env";
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 90;
 
 export async function POST(req: NextRequest) {
-  const user = await getCurrentUser();
+  const user = await getActiveUser();
   if (!user) return NextResponse.json({ error: "not_connected" }, { status: 400 });
 
   const body = await req.json().catch(() => ({}));

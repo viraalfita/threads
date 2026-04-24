@@ -29,7 +29,7 @@ export function RegisterForm() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "register_failed");
-      router.replace("/");
+      router.replace("/dashboard");
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Daftar gagal");
