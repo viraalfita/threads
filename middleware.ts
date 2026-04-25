@@ -6,9 +6,12 @@ const PUBLIC_EXACT = new Set<string>([
   "/",
   "/login",
   "/register",
+  "/privacy-policy",
+  "/data-deletion-status",
   "/api/auth/login",
   "/api/auth/register",
   "/api/auth/logout",
+  "/api/data-deletion",
 ]);
 
 const PUBLIC_PREFIX = [

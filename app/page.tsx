@@ -115,9 +115,12 @@ export default async function LandingPage() {
       </main>
 
       <footer className="border-t">
-        <div className="mx-auto max-w-6xl w-full px-6 py-6 text-xs text-muted-foreground flex items-center justify-between">
+        <div className="mx-auto max-w-6xl w-full px-6 py-6 text-xs text-muted-foreground flex items-center justify-between gap-4">
           <span>© {new Date().getFullYear()} ThreadLens</span>
-          <span>v0.1 MVP</span>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy-policy" className="hover:text-foreground">Privacy Policy</Link>
+            <span>v0.1 MVP</span>
+          </div>
         </div>
       </footer>
     </div>

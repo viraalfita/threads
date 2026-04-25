@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 
-const BARE_ROUTES = ["/", "/login", "/register"];
+const BARE_ROUTES = ["/", "/login", "/register", "/privacy-policy", "/data-deletion-status"];
 
 export function AppShell({
   children,
