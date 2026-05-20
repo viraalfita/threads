@@ -6,7 +6,8 @@
       "Bash(echo \"TOKEN_ENCRYPTION_KEY=$\\(openssl rand -hex 32\\)\")",
       "Bash(echo \"CRON_SECRET=$\\(openssl rand -hex 24\\)\")",
       "Bash(vercel --version)",
-      "Bash(git remote *)"
+      "Bash(git remote *)",
+      "Bash(/usr/bin/ls /Users/viraalfita/threads/app/dashboard/ /Users/viraalfita/threads/app/posts/ /Users/viraalfita/threads/app/analysis/ /Users/viraalfita/threads/app/settings/)"
     ]
   }
 }

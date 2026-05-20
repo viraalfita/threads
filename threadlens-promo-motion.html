@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ThreadLens — Product Motion (16:9)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<style>
+  /* ═════════════════════════════════════════════════════════════
+     ThreadLens — Cinematic Product Motion · 16:9 · 36s loop
+     - Real product UI (Dashboard / Posts / Post Detail / AI Analysis)
+     - Cursor visible throughout each scene
+     - Each click triggers: pulse + callout tooltip + visible response
+     ───────────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cinema:    #050507;
+    --bg:        #0a0a0c;            /* main app bg — near black */
+    --bg-soft:   #131317;            /* sidebar/topbar — slight contrast */
+    --bg-tint:   #1f1f23;            /* hover/active bg */
+    --line:      #27272a;            /* borders */
+    --line-2:    #3f3f46;            /* stronger borders */
+    --line-soft: #1c1c20;            /* subtle dividers */
+    --ink:       #fafafa;            /* primary text */
+    --ink-2:     #e4e4e7;            /* slightly muted text */
+    --muted:     #a1a1aa;            /* muted text */
+    --dim:       #71717a;            /* dimmer text */
+    --faint:     #52525b;            /* faintest */
+    --good:      #4ade80;
+    --good-soft: rgba(74,222,128,0.14);
+    --bad:       #f87171;
+    --bad-soft:  rgba(248,113,113,0.14);
+    --violet:    #a78bfa;
+    --violet-2:  #c4b5fd;
+    --violet-soft:rgba(167,139,250,0.18);
+    --sky:       #38bdf8;
+    --amber:     #fbbf24;
+    --primary-bg: #fafafa;           /* primary button bg in dark theme */
+    --primary-fg: #0a0a0c;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--cinema);
+    color: var(--ink);
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: "ss01","cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* 16:9 stage */
+  .stage {
+    position: relative;
+    width: 1920px; height: 1080px;
+    background: var(--cinema);
+    overflow: hidden;
+    transform-origin: center center;
+  }
+  @media (max-aspect-ratio: 16/9) { .stage { transform: scale(calc(100vw / 1920)); } }
+  @media (min-aspect-ratio: 16/9) { .stage { transform: scale(calc(100vh / 1080)); } }
+
+  /* Cinema backdrop */
+  .cinema-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 1200px 700px at 30% 30%, rgba(124,58,237,0.20), transparent 60%),
+      radial-gradient(ellipse 1000px 600px at 75% 70%, rgba(56,189,248,0.12), transparent 60%),
+      var(--cinema);
+  }
+  .cinema-grid {
+    position: absolute; inset: 0; z-index: 1;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 85%);
+  }
+  .vignette {
+    position: absolute; inset: 0; z-index: 80; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+  }
+
+  /* App window (light) */
+  .app {
+    position: absolute;
+    left: 80px; top: 70px;
+    width: calc(1920px - 160px); height: calc(1080px - 200px);
+    background: var(--bg);
+    border-radius: 18px;
+    overflow: hidden;
+    z-index: 10;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.06),
+      0 60px 120px -30px rgba(0,0,0,0.6),
+      0 0 80px -10px rgba(124,58,237,0.25);
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: 56px 1fr;
+  }
+
+  /* App is hidden during S1, visible S2-S5 */
+  .app { animation: app-show 36s linear infinite; }
+  @keyframes app-show {
+    0%, 9%    { opacity: 0; transform: scale(0.97); }
+    11%, 89%  { opacity: 1; transform: scale(1); }
+    91%, 100% { opacity: 0; transform: scale(0.99); }
+  }
+
+  /* Sidebar */
+  .sidebar {
+    grid-row: 1 / 3;
+    border-right: 1px solid var(--line);
+    background: var(--bg-soft);
+    display: flex; flex-direction: column;
+  }
+  .sb-brand {
+    height: 56px; display: flex; align-items: center; gap: 10px;
+    padding: 0 16px; border-bottom: 1px solid var(--line);
+  }
+  .brand-mark {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, #ffffff, #d4d4d8);
+    color: var(--cinema);
+    display: grid; place-items: center;
+  }
+  .brand-mark svg { width: 16px; height: 16px; }
+  .brand-name { font-size: 15px; font-weight: 600; letter-spacing: -0.015em; color: var(--ink); }
+  .sb-nav { padding: 8px; display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .sb-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 12px; border-radius: 6px;
+    font-size: 14px; color: var(--muted); font-weight: 450;
+  }
+  .sb-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .sb-foot {
+    padding: 12px 16px;
+    border-top: 1px solid var(--line);
+    font-family: 'Geist Mono', monospace; font-size: 11px;
+    color: var(--dim);
+  }
+  /* Active state per scene */
+  .sb-item.nav-dash { animation: nav-dash 36s linear infinite; }
+  .sb-item.nav-posts { animation: nav-posts 36s linear infinite; }
+  .sb-item.nav-ai   { animation: nav-ai 36s linear infinite; }
+  @keyframes nav-dash {
+    0%, 9%      { background: transparent; color: var(--muted); font-weight: 450; }
+    11%, 28%    { background: var(--bg-tint); color: var(--ink); font-weight: 500; }
+    30%, 100%   { background: transparent; color: var(--muted); font-weight: 450; }
+  }
+  @keyframes nav-posts {
+    0%, 28%     { background: transparent; color: var(--muted); font-weight: 450; }
+    30%, 67%    { background: var(--bg-tint); color: var(--ink); font-weight: 500; }
+    69%, 100%   { background: transparent; color: var(--muted); font-weight: 450; }
+  }
+  @keyframes nav-ai {
+    0%, 67%     { background: transparent; color: var(--muted); font-weight: 450; }
+    69%, 88%    { background: var(--bg-tint); color: var(--ink); font-weight: 500; }
+    90%, 100%   { background: transparent; color: var(--muted); font-weight: 450; }
+  }
+
+  /* Topbar */
+  .topbar {
+    grid-column: 2 / 3;
+    border-bottom: 1px solid var(--line);
+    padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg-soft);
+  }
+  .crumbs {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13.5px; color: var(--muted);
+  }
+  .crumbs .sep { color: var(--faint); }
+  .crumbs .cur { color: var(--ink); font-weight: 500; }
+  .crumbs > span[class^="crumb-"] { animation-duration: 36s; animation-timing-function: linear; animation-iteration-count: infinite; }
+  .crumb-s2 { animation-name: crumb-s2; }
+  .crumb-s3 { animation-name: crumb-s3; display: none; }
+  .crumb-s4 { animation-name: crumb-s4; display: none; }
+  .crumb-s5 { animation-name: crumb-s5; display: none; }
+  @keyframes crumb-s2 { 0%, 29% { display: inline; } 29.01%, 100% { display: none; } }
+  @keyframes crumb-s3 { 0%, 29% { display: none; } 29.01%, 47% { display: inline; } 47.01%, 100% { display: none; } }
+  @keyframes crumb-s4 { 0%, 47% { display: none; } 47.01%, 68% { display: inline; } 68.01%, 100% { display: none; } }
+  @keyframes crumb-s5 { 0%, 68% { display: none; } 68.01%, 89% { display: inline; } 89.01%, 100% { display: none; } }
+
+  .acct-pill {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 12px 4px 4px;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: var(--bg);
+    font-size: 13px; color: var(--ink-2);
+  }
+  .acct-pill .chev { color: var(--muted); }
+  .acct-pill .av {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #06b6d4);
+    color: white; display: grid; place-items: center;
+    font-size: 12px; font-weight: 600;
+  }
+
+  /* Canvas */
+  .canvas { position: relative; overflow: hidden; background: var(--bg); }
+
+  /* Scene base */
+  .scene {
+    position: absolute; inset: 0;
+    padding: 24px 28px;
+    opacity: 0;
+    display: flex; flex-direction: column;
+    gap: 18px;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SCENE TIMING — 36s loop
+       S1 BRAND INTRO        0   →   2.4s    (0    – 10%)
+       S2 DASHBOARD          2.2 →   7.2s    (9.2  – 30%)
+       S3 POSTS              7.0 →  11.4s    (29   – 47.5%)
+       S4 POST DETAIL + AI  11.2 →  16.4s    (46.5 – 68.5%)
+       S5 PATTERN DETECT.   16.2 →  21.4s    (67.5 – 89%)
+       S6 FINAL BRAND       21.2 →  36s      (88   – 100%)
+     ═══════════════════════════════════════════════════════════ */
+  .s1 { animation: scene-1 36s ease-in-out infinite; }
+  @keyframes scene-1 {
+    0%       { opacity: 0; transform: translateY(8px) scale(0.99); }
+    2%, 8%   { opacity: 1; transform: translateY(0) scale(1); }
+    10%      { opacity: 0; transform: translateY(-6px) scale(1.01); }
+    100%     { opacity: 0; }
+  }
+  .s2 { animation: scene-2 36s ease-in-out infinite; }
+  @keyframes scene-2 {
+    0%, 9%     { opacity: 0; transform: translateY(8px); }
+    11%, 28%   { opacity: 1; transform: translateY(0); }
+    30%, 100%  { opacity: 0; transform: translateY(-6px); }
+  }
+  .s3 { animation: scene-3 36s ease-in-out infinite; }
+  @keyframes scene-3 {
+    0%, 28%    { opacity: 0; transform: translateY(8px); }
+    30%, 45%   { opacity: 1; transform: translateY(0); }
+    47%, 100%  { opacity: 0; transform: translateY(-6px); }
+  }
+  .s4 { animation: scene-4 36s ease-in-out infinite; }
+  @keyframes scene-4 {
+    0%, 46%    { opacity: 0; transform: translateY(8px); }
+    48%, 66%   { opacity: 1; transform: translateY(0); }
+    68%, 100%  { opacity: 0; transform: translateY(-6px); }
+  }
+  .s5 { animation: scene-5 36s ease-in-out infinite; }
+  @keyframes scene-5 {
+    0%, 67%    { opacity: 0; transform: translateY(8px); }
+    69%, 87%   { opacity: 1; transform: translateY(0); }
+    89%, 100%  { opacity: 0; transform: translateY(-6px); }
+  }
+  .s6 { animation: scene-6 36s ease-in-out infinite; }
+  @keyframes scene-6 {
+    0%, 87%    { opacity: 0; transform: scale(0.97); }
+    90%, 100%  { opacity: 1; transform: scale(1); }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     CURSOR (visible throughout scenes 2-5)
+     ═══════════════════════════════════════════════════════════ */
+  .cursor {
+    position: absolute;
+    z-index: 60;
+    width: 26px; height: 26px;
+    pointer-events: none;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+    opacity: 0;
+    transform-origin: top left;
+    animation: cursor-path 36s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+  }
+  /* Click points (stage coords):
+     S2 PeriodSelect:   (1620, 175)
+     S2 SyncButton:     (1758, 175)
+     S3 SortViews:      (1015, 282)
+     S3 CSVButton:      (1775, 240)
+     S4 AnalyzeBtn:     (1718, 175)
+     S5 GenerateBtn:    (905, 540)
+  */
+  @keyframes cursor-path {
+    /* S1 hidden */
+    0%, 10%   { opacity: 0; left: 600px; top: 800px; transform: scale(0.85); }
+    /* S2 — enter early, glide around */
+    12%       { opacity: 1; left: 700px; top: 600px; transform: scale(1); }
+    16%       { opacity: 1; left: 900px; top: 350px; transform: scale(1); }
+    19%       { opacity: 1; left: 1620px; top: 175px; transform: scale(1); }
+    20%       { opacity: 1; left: 1620px; top: 175px; transform: scale(0.85); }   /* press period */
+    21.5%     { opacity: 1; left: 1620px; top: 175px; transform: scale(1); }
+    /* Move to Sync */
+    25%       { opacity: 1; left: 1758px; top: 175px; transform: scale(1); }
+    26%       { opacity: 1; left: 1758px; top: 175px; transform: scale(0.85); }   /* press sync */
+    27.5%     { opacity: 1; left: 1758px; top: 175px; transform: scale(1); }
+    /* Transition to S3 */
+    30%       { opacity: 1; left: 1300px; top: 350px; transform: scale(1); }
+    33%       { opacity: 1; left: 700px; top: 320px; transform: scale(1); }
+    /* S3 — Sort header click */
+    38%       { opacity: 1; left: 1015px; top: 282px; transform: scale(1); }
+    39%       { opacity: 1; left: 1015px; top: 282px; transform: scale(0.85); }
+    40.5%     { opacity: 1; left: 1015px; top: 282px; transform: scale(1); }
+    /* Move to CSV */
+    44%       { opacity: 1; left: 1775px; top: 240px; transform: scale(1); }
+    /* Transition to S4 */
+    48%       { opacity: 1; left: 1200px; top: 250px; transform: scale(1); }
+    /* S4 — Analyze button */
+    55%       { opacity: 1; left: 1718px; top: 175px; transform: scale(1); }
+    56.5%     { opacity: 1; left: 1718px; top: 175px; transform: scale(0.85); }
+    58%       { opacity: 1; left: 1718px; top: 175px; transform: scale(1); }
+    /* Hover over AI insights */
+    63%       { opacity: 1; left: 1450px; top: 500px; transform: scale(1); }
+    /* Transition to S5 */
+    68%       { opacity: 1; left: 800px; top: 400px; transform: scale(1); }
+    /* S5 — Generate button */
+    78%       { opacity: 1; left: 905px; top: 540px; transform: scale(1); }
+    79%       { opacity: 1; left: 905px; top: 540px; transform: scale(0.85); }
+    80.5%     { opacity: 1; left: 905px; top: 540px; transform: scale(1); }
+    /* Cursor explores report */
+    84%       { opacity: 1; left: 600px; top: 700px; transform: scale(1); }
+    87%       { opacity: 0; left: 700px; top: 800px; transform: scale(1); }
+    100%      { opacity: 0; }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     CLICK PULSE (6 click moments)
+     ═══════════════════════════════════════════════════════════ */
+  .pulse {
+    position: absolute; z-index: 55;
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    border: 2.5px solid var(--violet);
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.35);
+    box-shadow: 0 0 40px rgba(124,58,237,0.5);
+  }
+  .pulse-1 { left: 1620px; top: 175px; animation: pulse-1 36s ease-out infinite; }
+  .pulse-2 { left: 1758px; top: 175px; animation: pulse-2 36s ease-out infinite; }
+  .pulse-3 { left: 1015px; top: 282px; animation: pulse-3 36s ease-out infinite; }
+  .pulse-4 { left: 1775px; top: 240px; animation: pulse-4 36s ease-out infinite; }
+  .pulse-5 { left: 1718px; top: 175px; animation: pulse-5 36s ease-out infinite; }
+  .pulse-6 { left: 905px; top: 540px; animation: pulse-6 36s ease-out infinite; }
+  @keyframes pulse-1 { 0%,19.5%{opacity:0;transform:translate(-50%,-50%) scale(0.35)} 20%{opacity:0.9;transform:translate(-50%,-50%) scale(0.5)} 22%{opacity:0;transform:translate(-50%,-50%) scale(1.5)} 100%{opacity:0} }
+  @keyframes pulse-2 { 0%,25.5%{opacity:0;transform:translate(-50%,-50%) scale(0.35)} 26%{opacity:0.9;transform:translate(-50%,-50%) scale(0.5)} 28%{opacity:0;transform:translate(-50%,-50%) scale(1.5)} 100%{opacity:0} }
+  @keyframes pulse-3 { 0%,38.5%{opacity:0;transform:translate(-50%,-50%) scale(0.35)} 39%{opacity:0.9;transform:translate(-50%,-50%) scale(0.5)} 41%{opacity:0;transform:translate(-50%,-50%) scale(1.5)} 100%{opacity:0} }
+  @keyframes pulse-4 { 0%,44%{opacity:0;transform:translate(-50%,-50%) scale(0.35)} 44.5%{opacity:0;transform:translate(-50%,-50%) scale(0.5)} 100%{opacity:0} }
+  @keyframes pulse-5 { 0%,56%{opacity:0;transform:translate(-50%,-50%) scale(0.35)} 56.5%{opacity:0.9;transform:translate(-50%,-50%) scale(0.5)} 58.5%{opacity:0;transform:translate(-50%,-50%) scale(1.5)} 100%{opacity:0} }
+  @keyframes pulse-6 { 0%,78.5%{opacity:0;transform:translate(-50%,-50%) scale(0.35)} 79%{opacity:0.9;transform:translate(-50%,-50%) scale(0.5)} 81%{opacity:0;transform:translate(-50%,-50%) scale(1.5)} 100%{opacity:0} }
+
+  /* ═══════════════════════════════════════════════════════════
+     CALLOUT TOOLTIPS (one per click — explains the feature)
+     ═══════════════════════════════════════════════════════════ */
+  .callout {
+    position: absolute;
+    z-index: 58;
+    width: 420px;
+    background: rgba(20,20,24,0.97);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 16px;
+    padding: 22px 24px;
+    backdrop-filter: blur(16px);
+    box-shadow:
+      0 0 0 1px rgba(124,58,237,0.25),
+      0 30px 70px -10px rgba(0,0,0,0.85),
+      0 0 60px -5px rgba(124,58,237,0.4);
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+    color: var(--ink);
+  }
+  .callout::before {
+    content: ""; position: absolute;
+    left: 0; top: 22px; bottom: 22px; width: 4px;
+    background: linear-gradient(180deg, var(--violet), var(--sky));
+    border-radius: 2px;
+    box-shadow: 0 0 12px rgba(167,139,250,0.5);
+  }
+  .callout .c-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: 0.1em;
+    padding: 4px 10px; border-radius: 5px;
+    background: var(--violet-soft); color: var(--violet-2);
+    text-transform: uppercase; font-weight: 500;
+    border: 1px solid rgba(167,139,250,0.3);
+    margin-left: 12px;
+    opacity: 0; transform: translateY(4px);
+  }
+  .callout .c-badge::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--violet-2);
+    box-shadow: 0 0 10px var(--violet-2);
+  }
+  .callout .c-title {
+    font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink);
+    line-height: 1.2;
+    margin-left: 12px; margin-top: 10px;
+    opacity: 0; transform: translateY(6px);
+  }
+  .callout .c-body {
+    margin-left: 12px; margin-top: 10px;
+    font-size: 15px; line-height: 1.55; color: var(--ink-2);
+    opacity: 0; transform: translateY(6px);
+  }
+  .callout .c-body b { color: white; font-weight: 600; }
+  /* Connector dot (pulsing) */
+  .callout::after {
+    content: ""; position: absolute;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--violet-2);
+    box-shadow:
+      0 0 0 6px rgba(167,139,250,0.18),
+      0 0 0 12px rgba(167,139,250,0.08),
+      0 0 20px rgba(167,139,250,0.8);
+    animation: dot-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes dot-pulse {
+    0%, 100% { box-shadow: 0 0 0 6px rgba(167,139,250,0.18), 0 0 0 12px rgba(167,139,250,0.08), 0 0 20px rgba(167,139,250,0.8); }
+    50%      { box-shadow: 0 0 0 10px rgba(167,139,250,0.25), 0 0 0 20px rgba(167,139,250,0.10), 0 0 30px rgba(167,139,250,1); }
+  }
+  /* ── Per-callout positions, container & inner-element timing ── */
+  /* Each scene's click: container fades in, then badge → title → body stagger */
+
+  /* C-1: S2 Period selector (click ~20%, callout ~22% → 27%) */
+  .c-1 { left: 1150px; top: 230px; }
+  .c-1::after { right: -38px; top: 50%; transform: translateY(-50%); }
+  .c-1 { animation: c-1-show 36s ease-out infinite; }
+  .c-1 .c-badge { animation: c-1-badge 36s ease-out infinite; }
+  .c-1 .c-title { animation: c-1-title 36s ease-out infinite; }
+  .c-1 .c-body  { animation: c-1-body  36s ease-out infinite; }
+  @keyframes c-1-show  { 0%,20%{opacity:0;transform:translateY(12px) scale(0.96)} 22%,27%{opacity:1;transform:translateY(0) scale(1)} 29%{opacity:0;transform:translateY(-4px) scale(0.99)} 100%{opacity:0} }
+  @keyframes c-1-badge { 0%,21%{opacity:0;transform:translateY(4px)} 22.5%,27%{opacity:1;transform:translateY(0)} 29%{opacity:0} 100%{opacity:0} }
+  @keyframes c-1-title { 0%,22%{opacity:0;transform:translateY(6px)} 23.5%,27%{opacity:1;transform:translateY(0)} 29%{opacity:0} 100%{opacity:0} }
+  @keyframes c-1-body  { 0%,23%{opacity:0;transform:translateY(6px)} 24.5%,27%{opacity:1;transform:translateY(0)} 29%{opacity:0} 100%{opacity:0} }
+
+  /* C-2: S2 Sync button (click ~26%) — extended + faster stagger so it's readable */
+  .c-2 { left: 1280px; top: 280px; }
+  .c-2::after { right: -38px; top: 50%; transform: translateY(-50%); }
+  .c-2 { animation: c-2-show 36s ease-out infinite; }
+  .c-2 .c-badge { animation: c-2-badge 36s ease-out infinite; }
+  .c-2 .c-title { animation: c-2-title 36s ease-out infinite; }
+  .c-2 .c-body  { animation: c-2-body  36s ease-out infinite; }
+  @keyframes c-2-show  { 0%,26%{opacity:0;transform:translateY(12px) scale(0.96)} 27%,29.5%{opacity:1;transform:translateY(0) scale(1)} 30%{opacity:0} 100%{opacity:0} }
+  @keyframes c-2-badge { 0%,26.5%{opacity:0;transform:translateY(4px)} 27%,29.5%{opacity:1;transform:translateY(0)} 30%{opacity:0} 100%{opacity:0} }
+  @keyframes c-2-title { 0%,27%{opacity:0;transform:translateY(6px)} 27.5%,29.5%{opacity:1;transform:translateY(0)} 30%{opacity:0} 100%{opacity:0} }
+  @keyframes c-2-body  { 0%,27.5%{opacity:0;transform:translateY(6px)} 28%,29.5%{opacity:1;transform:translateY(0)} 30%{opacity:0} 100%{opacity:0} }
+
+  /* C-3: S3 Sort header "Views" (click ~39%) */
+  .c-3 { left: 540px; top: 370px; }
+  .c-3::after { right: -38px; top: 50%; transform: translateY(-50%); }
+  .c-3 { animation: c-3-show 36s ease-out infinite; }
+  .c-3 .c-badge { animation: c-3-badge 36s ease-out infinite; }
+  .c-3 .c-title { animation: c-3-title 36s ease-out infinite; }
+  .c-3 .c-body  { animation: c-3-body  36s ease-out infinite; }
+  @keyframes c-3-show  { 0%,39%{opacity:0;transform:translateY(12px) scale(0.96)} 41%,45%{opacity:1;transform:translateY(0) scale(1)} 47%{opacity:0} 100%{opacity:0} }
+  @keyframes c-3-badge { 0%,40%{opacity:0;transform:translateY(4px)} 41.5%,45%{opacity:1;transform:translateY(0)} 47%{opacity:0} 100%{opacity:0} }
+  @keyframes c-3-title { 0%,41%{opacity:0;transform:translateY(6px)} 42.5%,45%{opacity:1;transform:translateY(0)} 47%{opacity:0} 100%{opacity:0} }
+  @keyframes c-3-body  { 0%,42%{opacity:0;transform:translateY(6px)} 43.5%,45%{opacity:1;transform:translateY(0)} 47%{opacity:0} 100%{opacity:0} }
+
+  /* C-5: S4 Analyze with AI (click ~57%) */
+  .c-5 { left: 1180px; top: 260px; }
+  .c-5::after { right: -38px; top: 50%; transform: translateY(-50%); }
+  .c-5 { animation: c-5-show 36s ease-out infinite; }
+  .c-5 .c-badge { animation: c-5-badge 36s ease-out infinite; }
+  .c-5 .c-title { animation: c-5-title 36s ease-out infinite; }
+  .c-5 .c-body  { animation: c-5-body  36s ease-out infinite; }
+  @keyframes c-5-show  { 0%,56.5%{opacity:0;transform:translateY(12px) scale(0.96)} 58%,66%{opacity:1;transform:translateY(0) scale(1)} 68%{opacity:0} 100%{opacity:0} }
+  @keyframes c-5-badge { 0%,57.5%{opacity:0;transform:translateY(4px)} 58.5%,66%{opacity:1;transform:translateY(0)} 68%{opacity:0} 100%{opacity:0} }
+  @keyframes c-5-title { 0%,58.5%{opacity:0;transform:translateY(6px)} 59.5%,66%{opacity:1;transform:translateY(0)} 68%{opacity:0} 100%{opacity:0} }
+  @keyframes c-5-body  { 0%,59.5%{opacity:0;transform:translateY(6px)} 60.5%,66%{opacity:1;transform:translateY(0)} 68%{opacity:0} 100%{opacity:0} }
+
+  /* C-6: S5 Generate Pattern Report (click ~79%) */
+  .c-6 { left: 1050px; top: 480px; }
+  .c-6::after { left: -38px; top: 50%; transform: translateY(-50%); }
+  .c-6 { animation: c-6-show 36s ease-out infinite; }
+  .c-6 .c-badge { animation: c-6-badge 36s ease-out infinite; }
+  .c-6 .c-title { animation: c-6-title 36s ease-out infinite; }
+  .c-6 .c-body  { animation: c-6-body  36s ease-out infinite; }
+  @keyframes c-6-show  { 0%,79%{opacity:0;transform:translateY(12px) scale(0.96)} 80.5%,87%{opacity:1;transform:translateY(0) scale(1)} 89%{opacity:0} 100%{opacity:0} }
+  @keyframes c-6-badge { 0%,80%{opacity:0;transform:translateY(4px)} 81%,87%{opacity:1;transform:translateY(0)} 89%{opacity:0} 100%{opacity:0} }
+  @keyframes c-6-title { 0%,81%{opacity:0;transform:translateY(6px)} 82%,87%{opacity:1;transform:translateY(0)} 89%{opacity:0} 100%{opacity:0} }
+  @keyframes c-6-body  { 0%,82%{opacity:0;transform:translateY(6px)} 83%,87%{opacity:1;transform:translateY(0)} 89%{opacity:0} 100%{opacity:0} }
+
+  /* ═══════════════════════════════════════════════════════════
+     COMPONENTS
+     ═══════════════════════════════════════════════════════════ */
+  .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+  .page-title { font-size: 22px; font-weight: 600; letter-spacing: -0.015em; color: var(--ink); }
+  .page-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 32px; padding: 0 12px;
+    border-radius: 6px;
+    font-size: 13px; font-weight: 500;
+    border: 1px solid var(--line);
+    background: var(--bg-soft);
+    color: var(--ink);
+  }
+  .btn.primary { background: var(--primary-bg); color: var(--primary-fg); border-color: var(--primary-bg); }
+  .btn.outline { background: var(--bg-soft); color: var(--ink); border-color: var(--line); }
+  .btn svg { width: 14px; height: 14px; }
+  .btn.lg { height: 36px; padding: 0 14px; }
+
+  .select-trigger {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 32px; padding: 0 12px;
+    border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg-soft);
+    font-size: 13px; color: var(--ink);
+    min-width: 140px;
+    position: relative;
+  }
+  .select-trigger .val { flex: 1; }
+  .select-trigger .chev { color: var(--muted); }
+
+  /* Dropdown panel */
+  .dropdown {
+    position: absolute;
+    top: 38px; left: 0;
+    width: 140px;
+    background: var(--bg-soft); border: 1px solid var(--line);
+    border-radius: 8px; padding: 4px;
+    box-shadow: 0 12px 32px -8px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+    z-index: 20;
+  }
+  .dropdown .opt {
+    padding: 6px 10px; border-radius: 5px;
+    font-size: 13px; color: var(--ink-2);
+  }
+  .dropdown .opt.on { background: var(--bg-tint); color: var(--ink); font-weight: 500; }
+  .dropdown .opt.hover { background: var(--violet-soft); color: var(--violet-2); }
+
+  .card {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .card-head {
+    padding: 14px 18px 6px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-title { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
+  .card-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .card-body { padding: 6px 18px 18px; }
+
+  /* KPI */
+  .kpi {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::after {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(circle at 100% 0%, rgba(167,139,250,0.08), transparent 50%);
+    pointer-events: none;
+  }
+  .kpi-head { display: flex; align-items: center; justify-content: space-between; }
+  .kpi-label { font-size: 12.5px; font-weight: 500; color: var(--muted); }
+  .kpi-icon svg { width: 16px; height: 16px; color: var(--muted); }
+  .kpi-value {
+    font-size: 26px; font-weight: 600; letter-spacing: -0.02em;
+    color: var(--ink); margin-top: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi-hint { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  .kpi-delta {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 4px;
+    padding: 2px 7px; border-radius: 4px;
+    font-family: 'Geist Mono', monospace; font-size: 10.5px; font-weight: 500;
+    background: var(--good-soft); color: var(--good);
+  }
+  .kpi-delta.down { background: var(--bad-soft); color: var(--bad); }
+
+  /* ═══════════════════════════════════════════════════════════
+     SCENE 1 — BRAND INTRO
+     ═══════════════════════════════════════════════════════════ */
+  .scene-1 { align-items: center; justify-content: center; padding: 0; gap: 0; position: absolute; inset: 0; z-index: 20; }
+  .s1-stack { display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
+  .s1-mark {
+    width: 92px; height: 92px;
+    border-radius: 22px;
+    background: #0a0a0a; color: #ffffff;
+    display: grid; place-items: center;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.06),
+      0 30px 80px -20px rgba(124,58,237,0.6),
+      0 0 60px -10px rgba(124,58,237,0.5);
+    animation: s1-mark 36s ease-out infinite;
+  }
+  .s1-mark svg { width: 44px; height: 44px; }
+  @keyframes s1-mark {
+    0%       { opacity: 0; transform: scale(0.7) translateY(20px); }
+    3%       { opacity: 1; transform: scale(1) translateY(0); }
+    8%       { opacity: 1; transform: scale(1.02); }
+    10%      { opacity: 0; transform: scale(0.98); }
+    100%     { opacity: 0; }
+  }
+  .s1-title {
+    font-size: 72px; font-weight: 600; letter-spacing: -0.04em; color: white; line-height: 1;
+    opacity: 0;
+    animation: s1-title 36s ease-out infinite;
+  }
+  .s1-title em { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; color: rgba(255,255,255,0.85); }
+  @keyframes s1-title {
+    0%,3%  { opacity: 0; transform: translateY(10px); }
+    6%     { opacity: 1; transform: translateY(0); }
+    8%     { opacity: 1; }
+    10%    { opacity: 0; }
+    100%   { opacity: 0; }
+  }
+  .s1-sub {
+    font-size: 20px; color: rgba(255,255,255,0.65);
+    opacity: 0;
+    animation: s1-sub 36s ease-out infinite;
+  }
+  .s1-sub .serif { font-family: 'Instrument Serif', serif; font-style: italic; color: white; }
+  @keyframes s1-sub {
+    0%,5%  { opacity: 0; transform: translateY(8px); }
+    7%     { opacity: 1; transform: translateY(0); }
+    8%     { opacity: 1; }
+    10%    { opacity: 0; }
+    100%   { opacity: 0; }
+  }
+  .s1-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: rgba(255,255,255,0.7);
+    opacity: 0;
+    animation: s1-pill 36s ease-out infinite;
+  }
+  .s1-pill .live { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 10px #22c55e; }
+  @keyframes s1-pill {
+    0%     { opacity: 0; transform: translateY(8px); }
+    4%     { opacity: 1; transform: translateY(0); }
+    8%     { opacity: 1; }
+    10%    { opacity: 0; }
+    100%   { opacity: 0; }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SCENE 2 — DASHBOARD
+     ═══════════════════════════════════════════════════════════ */
+  .dash-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .dash-actions { display: flex; gap: 8px; align-items: center; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+  .scene-2 .kpi:nth-child(1) { animation: kpi-1 36s ease-out infinite; }
+  .scene-2 .kpi:nth-child(2) { animation: kpi-2 36s ease-out infinite; }
+  .scene-2 .kpi:nth-child(3) { animation: kpi-3 36s ease-out infinite; }
+  .scene-2 .kpi:nth-child(4) { animation: kpi-4 36s ease-out infinite; }
+  @keyframes kpi-1 { 0%,12%{opacity:0;transform:translateY(8px)} 14%,28%{opacity:1;transform:translateY(0)} 30%{opacity:0}100%{opacity:0} }
+  @keyframes kpi-2 { 0%,13%{opacity:0;transform:translateY(8px)} 15%,28%{opacity:1;transform:translateY(0)} 30%{opacity:0}100%{opacity:0} }
+  @keyframes kpi-3 { 0%,14%{opacity:0;transform:translateY(8px)} 16%,28%{opacity:1;transform:translateY(0)} 30%{opacity:0}100%{opacity:0} }
+  @keyframes kpi-4 { 0%,15%{opacity:0;transform:translateY(8px)} 17%,28%{opacity:1;transform:translateY(0)} 30%{opacity:0}100%{opacity:0} }
+
+  /* Period select dropdown appears at click */
+  .scene-2 .ps-trigger { animation: ps-focus 36s ease-out infinite; }
+  @keyframes ps-focus {
+    0%, 19%   { border-color: var(--line); box-shadow: none; }
+    20%, 24%  { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(124,58,237,0.18); }
+    25%, 100% { border-color: var(--line); box-shadow: none; }
+  }
+  .scene-2 .ps-dropdown { animation: ps-dropdown 36s ease-out infinite; }
+  @keyframes ps-dropdown {
+    0%, 19%   { opacity: 0; transform: translateY(-4px) scale(0.98); pointer-events: none; }
+    20%, 24%  { opacity: 1; transform: translateY(0) scale(1); }
+    25%, 100% { opacity: 0; transform: translateY(-4px) scale(0.98); pointer-events: none; }
+  }
+  .scene-2 .ps-opt-7   { animation: ps-opt-7 36s linear infinite; }
+  @keyframes ps-opt-7 {
+    0%, 22%    { background: transparent; color: var(--ink-2); }
+    23%, 24%   { background: var(--violet-soft); color: var(--violet-2); font-weight: 500; }
+    25%, 100%  { background: transparent; color: var(--ink-2); }
+  }
+  /* Period value swap is handled by .ps-val-30 / .ps-val-7 display toggle below */
+  .scene-2 .ps-val-30 { animation: ps-30 36s linear infinite; }
+  .scene-2 .ps-val-7  { animation: ps-7  36s linear infinite; display: none; }
+  @keyframes ps-30 { 0%,24% { display: inline; } 24.01%,100% { display: none; } }
+  @keyframes ps-7  { 0%,24% { display: none; }  24.01%,100% { display: inline; } }
+
+  /* Sync button → loading state on click */
+  .scene-2 .sync-btn { animation: sync-btn 36s linear infinite; }
+  @keyframes sync-btn {
+    0%, 25%     { background: var(--bg-soft); color: var(--ink); border-color: var(--line); }
+    26%, 29%    { background: var(--violet-soft); color: var(--violet-2); border-color: var(--violet); }
+    30%, 100%   { background: var(--bg-soft); color: var(--ink); border-color: var(--line); }
+  }
+  .scene-2 .sync-icon { animation: sync-spin 36s linear infinite; transform-origin: center; }
+  @keyframes sync-spin {
+    0%, 25%   { transform: rotate(0); }
+    26%, 29%  { transform: rotate(720deg); }
+    30%, 100% { transform: rotate(0); }
+  }
+  .scene-2 .sync-label-idle { animation: sync-idle 36s linear infinite; }
+  .scene-2 .sync-label-load { animation: sync-load 36s linear infinite; display: none; }
+  @keyframes sync-idle { 0%,25.9% { display: inline; } 26%,29.4% { display: none; } 29.5%,100% { display: inline; } }
+  @keyframes sync-load { 0%,25.9% { display: none; }  26%,29.4% { display: inline; } 29.5%,100% { display: none; } }
+
+  /* Dashboard chart with draw animation */
+  .dash-chart { flex: 1; min-height: 0; }
+  .dash-chart-svg { width: 100%; height: 200px; display: block; }
+  .scene-2 .chart-draw {
+    stroke-dasharray: 1400;
+    stroke-dashoffset: 1400;
+    animation: chart-draw 36s ease-out infinite;
+  }
+  @keyframes chart-draw {
+    0%, 16% { stroke-dashoffset: 1400; }
+    22%     { stroke-dashoffset: 0; }
+    100%    { stroke-dashoffset: 0; }
+  }
+  .scene-2 .chart-fill { opacity: 0; animation: chart-fill 36s ease-out infinite; }
+  @keyframes chart-fill {
+    0%, 18%  { opacity: 0; }
+    22%, 28% { opacity: 1; }
+    30%, 100%{ opacity: 0; }
+  }
+  /* Chart annotation badge */
+  .chart-anno {
+    position: absolute; top: 38px; right: 28px;
+    background: var(--good-soft); color: var(--good);
+    border: 1px solid rgba(74,222,128,0.35);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 500; letter-spacing: 0.02em;
+    opacity: 0;
+    z-index: 4;
+    animation: anno-in 36s ease-out infinite;
+    box-shadow: 0 0 20px rgba(74,222,128,0.25);
+  }
+  @keyframes anno-in {
+    0%, 22%   { opacity: 0; transform: translateY(-6px); }
+    23%, 28%  { opacity: 1; transform: translateY(0); }
+    30%, 100% { opacity: 0; }
+  }
+
+  .top-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .top-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 8px; border-radius: 6px;
+    font-size: 12.5px;
+  }
+  .top-row .num { width: 22px; font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--muted); }
+  .top-row .txt { flex: 1; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .top-row .meta { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--muted); }
+  .top-row .meta b { color: var(--ink); font-weight: 600; font-family: 'Geist', sans-serif; font-size: 13px; }
+
+  /* ═══════════════════════════════════════════════════════════
+     SCENE 3 — POSTS
+     ═══════════════════════════════════════════════════════════ */
+  .posts-head { display: flex; align-items: center; justify-content: space-between; }
+  .search-row { display: flex; align-items: center; gap: 12px; }
+  .search-input {
+    display: flex; align-items: center; gap: 8px;
+    width: 320px; height: 36px;
+    padding: 0 12px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg-soft);
+    font-size: 13px; color: var(--muted);
+  }
+  .scene-3 .search-input { animation: search-focus 36s ease-out infinite; }
+  @keyframes search-focus {
+    0%, 33%   { border-color: var(--line); box-shadow: none; }
+    34%, 37%  { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
+    38%, 100% { border-color: var(--line); box-shadow: none; }
+  }
+  .results-count { color: var(--muted); font-size: 13px; }
+
+  .posts-table-wrap {
+    border: 1px solid var(--line); border-radius: 8px;
+    overflow: hidden; flex: 1; min-height: 0;
+    background: var(--bg-soft);
+  }
+  .ptbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ptbl th {
+    text-align: left; padding: 11px 14px;
+    font-size: 12px; font-weight: 500; color: var(--muted);
+    background: var(--bg-tint);
+    border-bottom: 1px solid var(--line);
+  }
+  .ptbl th.right { text-align: right; }
+  .ptbl th .sortable {
+    display: inline-flex; align-items: center; gap: 4px;
+    cursor: pointer;
+  }
+  .ptbl th .sortable svg { width: 11px; height: 11px; opacity: 0.6; }
+  .ptbl td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    color: var(--ink-2);
+  }
+  .ptbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ptbl tr:last-child td { border-bottom: 0; }
+  .ptbl tr.row .pl {
+    color: var(--ink-2);
+    text-decoration: underline;
+    text-decoration-color: var(--faint);
+    text-underline-offset: 2px;
+  }
+  /* Sort indicator on Views column lights up on click */
+  .scene-3 .th-views { animation: th-views 36s linear infinite; }
+  @keyframes th-views {
+    0%, 38%     { color: var(--muted); }
+    39%, 47%    { color: var(--ink); font-weight: 600; }
+    47.5%, 100% { color: var(--muted); }
+  }
+  .scene-3 .th-views .arrow-up { opacity: 0; animation: th-arrow 36s linear infinite; }
+  @keyframes th-arrow {
+    0%, 38%     { opacity: 0; }
+    39%, 47%    { opacity: 1; }
+    47.5%, 100% { opacity: 0; }
+  }
+
+  /* Posts table rows fade in cascading. After sort, rows visibly REORDER (translate-y). */
+  .scene-3 .row { opacity: 0; transform: translateY(6px); }
+  .scene-3 .row:nth-of-type(1) { animation: row-1 36s ease-out infinite; }
+  .scene-3 .row:nth-of-type(2) { animation: row-2 36s ease-out infinite; }
+  .scene-3 .row:nth-of-type(3) { animation: row-3 36s ease-out infinite; }
+  .scene-3 .row:nth-of-type(4) { animation: row-4 36s ease-out infinite; }
+  .scene-3 .row:nth-of-type(5) { animation: row-5 36s ease-out infinite; }
+  /* The "reorder" effect: at click, rows shift vertically a bit, then settle. Top row gets violet highlight. */
+  @keyframes row-1 {
+    0%, 30%   { opacity: 0; transform: translateY(6px); background: transparent; }
+    32%, 38%  { opacity: 1; transform: translateY(0); background: transparent; }
+    39%       { opacity: 1; transform: translateY(45px); background: transparent; }
+    40%, 41%  { opacity: 1; transform: translateY(0); background: linear-gradient(90deg, rgba(167,139,250,0.18), transparent 65%); }
+    47%, 100% { opacity: 0; background: transparent; }
+  }
+  @keyframes row-2 {
+    0%, 31%   { opacity: 0; transform: translateY(6px); }
+    33%, 38%  { opacity: 1; transform: translateY(0); }
+    39%       { opacity: 1; transform: translateY(-45px); }
+    40%, 47%  { opacity: 1; transform: translateY(0); }
+    47%, 100% { opacity: 0; }
+  }
+  @keyframes row-3 {
+    0%, 32%   { opacity: 0; transform: translateY(6px); }
+    34%, 38%  { opacity: 1; transform: translateY(0); }
+    39%, 47%  { opacity: 1; transform: translateY(0); }
+    47%, 100% { opacity: 0; }
+  }
+  @keyframes row-4 {
+    0%, 33%   { opacity: 0; transform: translateY(6px); }
+    35%, 47%  { opacity: 1; transform: translateY(0); }
+    47%, 100% { opacity: 0; }
+  }
+  @keyframes row-5 {
+    0%, 34%   { opacity: 0; transform: translateY(6px); }
+    36%, 47%  { opacity: 1; transform: translateY(0); }
+    47%, 100% { opacity: 0; }
+  }
+  /* CSV button briefly highlights as cursor approaches */
+  .scene-3 .csv-btn { animation: csv-hover 36s ease-out infinite; }
+  @keyframes csv-hover {
+    0%, 43%    { background: var(--bg-soft); border-color: var(--line); }
+    44%, 46%   { background: var(--bg-tint); border-color: var(--ink); }
+    47%, 100%  { background: var(--bg-soft); border-color: var(--line); }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SCENE 4 — POST DETAIL + AI ANALYSIS
+     ═══════════════════════════════════════════════════════════ */
+  .pd-head { display: flex; align-items: center; justify-content: space-between; }
+  .pd-back { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .pd-card { padding: 18px; }
+  .pd-meta { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .pd-badge {
+    display: inline-flex; align-items: center;
+    padding: 3px 9px; border-radius: 999px;
+    background: var(--bg-tint); color: var(--ink-2); border: 1px solid var(--line);
+    font-size: 11px; font-family: 'Geist Mono', monospace; letter-spacing: 0.04em;
+  }
+  .pd-er b { color: var(--ink); }
+  .pd-body { font-size: 14px; line-height: 1.55; color: var(--ink); margin-top: 6px; }
+  .pd-metrics {
+    margin-top: 16px; padding-top: 16px;
+    border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;
+  }
+  .pd-m { display: flex; flex-direction: column; gap: 3px; }
+  .pd-m .lbl {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; color: var(--muted);
+  }
+  .pd-m .lbl svg { width: 12px; height: 12px; }
+  .pd-m .v { font-size: 18px; font-weight: 600; letter-spacing: -0.015em; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .pd-er { margin-top: 12px; font-size: 13px; color: var(--muted); }
+  .pd-er b { color: var(--ink); font-weight: 600; }
+
+  /* "Analyze with AI" button state */
+  .scene-4 .ai-btn { animation: ai-btn 36s linear infinite; }
+  @keyframes ai-btn {
+    0%, 56%     { background: var(--primary-bg); color: var(--primary-fg); border-color: var(--primary-bg); transform: scale(1); }
+    56.5%       { background: var(--primary-bg); color: var(--primary-fg); transform: scale(0.97); }
+    57%, 60%    { background: var(--violet); color: white; border-color: var(--violet); transform: scale(1); }
+    60.5%, 100% { background: var(--primary-bg); color: var(--primary-fg); border-color: var(--primary-bg); transform: scale(1); }
+  }
+  .scene-4 .ai-btn-idle { animation: aib-idle 36s linear infinite; }
+  .scene-4 .ai-btn-load { animation: aib-load 36s linear infinite; display: none; }
+  @keyframes aib-idle { 0%,56.9% { display: inline-flex; } 57%,60.4% { display: none; } 60.5%,100% { display: inline-flex; } }
+  @keyframes aib-load { 0%,56.9% { display: none; } 57%,60.4% { display: inline-flex; align-items: center; gap: 6px; } 60.5%,100% { display: none; } }
+  .scene-4 .ai-spinner { animation: ai-spin 1s linear infinite; }
+  @keyframes ai-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+
+  /* AI panel (right side) — visible from scene start with placeholder, then content cascades */
+  .ai-panel {
+    background: linear-gradient(180deg, var(--bg-soft), rgba(124,58,237,0.04));
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 18px;
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .ai-panel-head { display: flex; align-items: center; gap: 10px; }
+  .ai-panel-head .spark {
+    width: 24px; height: 24px; border-radius: 7px;
+    background: linear-gradient(135deg, var(--violet), #06b6d4);
+    color: white; display: grid; place-items: center;
+    box-shadow: 0 0 14px rgba(124,58,237,0.4);
+  }
+  .ai-panel-head .spark svg { width: 13px; height: 13px; }
+  .ai-panel-head .t { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .ai-panel-head .badge {
+    margin-left: auto;
+    font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 999px;
+    background: var(--violet-soft); color: var(--violet);
+  }
+  /* Placeholder visible before click; insights visible after */
+  .ai-placeholder {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 13px; gap: 10px;
+    text-align: center; padding: 20px;
+  }
+  .ai-placeholder svg { width: 32px; height: 32px; color: var(--dim); opacity: 0.6; }
+  .scene-4 .ai-placeholder { animation: ai-placeholder 36s linear infinite; }
+  @keyframes ai-placeholder {
+    0%, 57%    { opacity: 1; max-height: 400px; }
+    58%, 100%  { opacity: 0; max-height: 0; overflow: hidden; }
+  }
+  .ai-thinking { display: inline-flex; gap: 5px; align-items: center; padding: 6px 0; }
+  .ai-thinking span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--violet);
+    animation: bob 1s ease-in-out infinite;
+  }
+  .ai-thinking span:nth-child(2) { animation-delay: 0.15s; }
+  .ai-thinking span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bob { 0%,100% { transform: translateY(0); opacity: 0.4; } 50% { transform: translateY(-4px); opacity: 1; } }
+  .scene-4 .ai-thinking-row { animation: ai-think-row 36s linear infinite; max-height: 0; overflow: hidden; }
+  @keyframes ai-think-row {
+    0%, 57.5%  { max-height: 0; opacity: 0; }
+    58%, 60%   { max-height: 30px; opacity: 1; }
+    60.5%, 100%{ max-height: 0; opacity: 0; }
+  }
+  .ai-line {
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 13px; line-height: 1.5; color: var(--ink-2);
+  }
+  .ai-line .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--violet); margin-top: 8px; flex-shrink: 0; }
+  .ai-line b { color: var(--ink); font-weight: 600; }
+  .scene-4 .ai-line { opacity: 0; transform: translateY(6px); }
+  .scene-4 .ai-line:nth-of-type(1) { animation: ai-l1 36s ease-out infinite; }
+  .scene-4 .ai-line:nth-of-type(2) { animation: ai-l2 36s ease-out infinite; }
+  .scene-4 .ai-line:nth-of-type(3) { animation: ai-l3 36s ease-out infinite; }
+  .scene-4 .ai-line:nth-of-type(4) { animation: ai-l4 36s ease-out infinite; }
+  @keyframes ai-l1 { 0%,60.5%{opacity:0;transform:translateY(6px)} 61%,67%{opacity:1;transform:translateY(0)} 68%{opacity:0} 100%{opacity:0} }
+  @keyframes ai-l2 { 0%,61.5%{opacity:0;transform:translateY(6px)} 62%,67%{opacity:1;transform:translateY(0)} 68%{opacity:0} 100%{opacity:0} }
+  @keyframes ai-l3 { 0%,62.5%{opacity:0;transform:translateY(6px)} 63%,67%{opacity:1;transform:translateY(0)} 68%{opacity:0} 100%{opacity:0} }
+  @keyframes ai-l4 { 0%,63.5%{opacity:0;transform:translateY(6px)} 64%,67%{opacity:1;transform:translateY(0)} 68%{opacity:0} 100%{opacity:0} }
+
+  .s4-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; flex: 1; min-height: 0; }
+
+  /* ═══════════════════════════════════════════════════════════
+     SCENE 5 — PATTERN DETECTION
+     ═══════════════════════════════════════════════════════════ */
+  .ai-tabs {
+    display: inline-flex; gap: 2px; padding: 3px;
+    background: var(--bg-tint); border-radius: 8px;
+  }
+  .ai-tabs span {
+    padding: 5px 12px; border-radius: 5px;
+    font-size: 13px; color: var(--muted);
+  }
+  .ai-tabs span.on { background: var(--bg-soft); color: var(--ink); font-weight: 500; box-shadow: 0 0 0 1px var(--line); }
+
+  .pf-form { padding: 16px 20px 18px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; }
+  .pf-field { display: flex; flex-direction: column; gap: 6px; }
+  .pf-field label { font-size: 11.5px; color: var(--muted); }
+
+  .scene-5 .gen-btn { animation: gen-btn 36s linear infinite; }
+  @keyframes gen-btn {
+    0%, 78%     { background: var(--primary-bg); color: var(--primary-fg); border-color: var(--primary-bg); transform: scale(1); }
+    78.5%       { background: var(--primary-bg); color: var(--primary-fg); transform: scale(0.97); }
+    79%, 84%    { background: var(--violet); color: white; border-color: var(--violet); transform: scale(1); }
+    84.5%, 100% { background: var(--primary-bg); color: var(--primary-fg); border-color: var(--primary-bg); transform: scale(1); }
+  }
+  .scene-5 .gen-btn-idle { animation: gb-idle 36s linear infinite; }
+  .scene-5 .gen-btn-load { animation: gb-load 36s linear infinite; display: none; }
+  @keyframes gb-idle { 0%,78.9% { display: inline-flex; } 79%,84.4% { display: none; } 84.5%,100% { display: inline-flex; } }
+  @keyframes gb-load { 0%,78.9% { display: none; } 79%,84.4% { display: inline-flex; align-items: center; gap: 6px; } 84.5%,100% { display: none; } }
+  .scene-5 .gen-spinner { animation: ai-spin 1s linear infinite; }
+
+  /* Pattern report — initially hidden, fades in after click */
+  .pattern-card { flex: 1; min-height: 0; overflow: hidden; }
+  .scene-5 .pattern-card { animation: pc-in 36s ease-out infinite; }
+  @keyframes pc-in {
+    0%, 81%      { opacity: 0; transform: translateY(8px); max-height: 0; }
+    82%, 87%     { opacity: 1; transform: translateY(0); max-height: 600px; }
+    89%, 100%    { opacity: 0; max-height: 0; }
+  }
+  .pattern-report { padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .pattern-report h3 {
+    font-size: 14px; font-weight: 600; color: var(--ink);
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .pattern-report h3 .num {
+    font-family: 'Geist Mono', monospace; font-size: 10.5px; color: var(--violet-2);
+    background: var(--violet-soft); padding: 2px 7px; border-radius: 4px;
+    border: 1px solid rgba(167,139,250,0.25);
+  }
+  .pattern-report p { font-size: 13px; line-height: 1.55; color: var(--ink-2); }
+  .pattern-report ul { padding-left: 20px; }
+  .pattern-report li { font-size: 13px; line-height: 1.5; color: var(--ink-2); margin-bottom: 6px; }
+  .pattern-report b { color: var(--ink); font-weight: 600; }
+  .scene-5 .pr-block { animation: pr-in 36s ease-out infinite; opacity: 0; }
+  .scene-5 .pr-block:nth-of-type(1) { animation-name: pr1; }
+  .scene-5 .pr-block:nth-of-type(2) { animation-name: pr2; }
+  .scene-5 .pr-block:nth-of-type(3) { animation-name: pr3; }
+  .scene-5 .pr-block:nth-of-type(4) { animation-name: pr4; }
+  @keyframes pr1 { 0%,82%{opacity:0;transform:translateY(8px)} 83%,87%{opacity:1;transform:translateY(0)} 89%{opacity:0}100%{opacity:0} }
+  @keyframes pr2 { 0%,83%{opacity:0;transform:translateY(8px)} 84%,87%{opacity:1;transform:translateY(0)} 89%{opacity:0}100%{opacity:0} }
+  @keyframes pr3 { 0%,84%{opacity:0;transform:translateY(8px)} 85%,87%{opacity:1;transform:translateY(0)} 89%{opacity:0}100%{opacity:0} }
+  @keyframes pr4 { 0%,85%{opacity:0;transform:translateY(8px)} 86%,87%{opacity:1;transform:translateY(0)} 89%{opacity:0}100%{opacity:0} }
+
+  /* ═══════════════════════════════════════════════════════════
+     SCENE 6 — FINAL BRAND
+     ═══════════════════════════════════════════════════════════ */
+  .scene-6 {
+    position: absolute; inset: 0; z-index: 70;
+    align-items: center; justify-content: center;
+    padding: 0; gap: 0;
+    background: rgba(8,8,10,0.96);
+    backdrop-filter: blur(8px);
+  }
+  .s6-stack { display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center; }
+  .s6-mark {
+    width: 96px; height: 96px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #ffffff, #d4d4d8);
+    color: var(--cinema);
+    display: grid; place-items: center;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.06),
+      0 30px 80px -20px rgba(124,58,237,0.6),
+      0 0 80px -10px rgba(124,58,237,0.5);
+  }
+  .s6-mark svg { width: 44px; height: 44px; }
+  .s6-title { font-size: 82px; line-height: 1; letter-spacing: -0.04em; font-weight: 600; color: white; }
+  .s6-tag { font-size: 22px; color: rgba(255,255,255,0.7); max-width: 36ch; line-height: 1.4; }
+  .s6-tag .serif { font-family: 'Instrument Serif', serif; font-style: italic; color: white; }
+
+  /* Timeline progress */
+  .timeline-bar {
+    position: absolute; left: 80px; right: 80px; bottom: 38px;
+    height: 2px; border-radius: 2px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden; z-index: 30;
+  }
+  .timeline-bar::after {
+    content: ""; display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, #7c3aed, #06b6d4);
+    animation: tl 36s linear infinite;
+    box-shadow: 0 0 14px rgba(124,58,237,0.6);
+  }
+  @keyframes tl { from { width: 0; } to { width: 100%; } }
+
+  /* Scene caption */
+  .scene-caption {
+    position: absolute; left: 50%; bottom: 56px;
+    transform: translateX(-50%);
+    z-index: 35;
+    padding: 12px 22px;
+    background: rgba(8,8,10,0.82);
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    border-radius: 999px;
+    color: rgba(255,255,255,0.95);
+    font-size: 16px; letter-spacing: -0.005em;
+    display: inline-flex; align-items: center; gap: 12px;
+    opacity: 0;
+    box-shadow: 0 8px 30px -10px rgba(0,0,0,0.6);
+  }
+  .scene-caption .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--violet-2); box-shadow: 0 0 14px var(--violet-2); animation: dot-pulse 1.4s ease-in-out infinite; }
+  .scene-caption b { color: white; font-weight: 600; }
+  .cap-s2 { animation: cap-2 36s linear infinite; }
+  .cap-s3 { animation: cap-3 36s linear infinite; }
+  .cap-s4 { animation: cap-4 36s linear infinite; }
+  .cap-s5 { animation: cap-5 36s linear infinite; }
+  @keyframes cap-2 { 0%,10%{opacity:0;transform:translate(-50%,8px)} 13%,28%{opacity:1;transform:translate(-50%,0)} 30%{opacity:0}100%{opacity:0} }
+  @keyframes cap-3 { 0%,30%{opacity:0;transform:translate(-50%,8px)} 32%,45%{opacity:1;transform:translate(-50%,0)} 47%{opacity:0}100%{opacity:0} }
+  @keyframes cap-4 { 0%,48%{opacity:0;transform:translate(-50%,8px)} 50%,66%{opacity:1;transform:translate(-50%,0)} 68%{opacity:0}100%{opacity:0} }
+  @keyframes cap-5 { 0%,69%{opacity:0;transform:translate(-50%,8px)} 71%,87%{opacity:1;transform:translate(-50%,0)} 89%{opacity:0}100%{opacity:0} }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="cinema-bg"></div>
+  <div class="cinema-grid"></div>
+
+  <!-- ═════════ SCENE 1 — BRAND INTRO ═════════ -->
+  <section class="scene scene-1 s1">
+    <div class="s1-stack">
+      <div class="s1-pill"><span class="live"></span> Built on the official Threads API</div>
+      <div class="s1-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>
+        </svg>
+      </div>
+      <h1 class="s1-title">ThreadLens<em>.</em></h1>
+      <p class="s1-sub">Threads analytics, <span class="serif">with an AI co-pilot.</span></p>
+    </div>
+  </section>
+
+  <!-- ═════════ APP WINDOW ═════════ -->
+  <div class="app">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sb-brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>
+          </svg>
+        </div>
+        <div class="brand-name">ThreadLens</div>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-item nav-dash">
+          <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+          Dashboard
+        </div>
+        <div class="sb-item nav-posts">
+          <svg viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Posts
+        </div>
+        <div class="sb-item nav-ai">
+          <svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.5 4 4 1.5-4 1.5L8 12.5l-1.5-4-4-1.5 4-1.5L8 1.5z" fill="currentColor"/></svg>
+          AI Analysis
+        </div>
+        <div class="sb-item">
+          <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.3 3.3l1.4 1.4M11.3 11.3l1.4 1.4M3.3 12.7l1.4-1.4M11.3 4.7l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Settings
+        </div>
+      </nav>
+      <div class="sb-foot">v0.1 MVP</div>
+    </aside>
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="crumbs">
+        <span class="crumb-s2">Dashboard</span>
+        <span class="crumb-s3">Posts</span>
+        <span class="crumb-s4">Posts <span class="sep">/</span> Post detail</span>
+        <span class="crumb-s5">AI Analysis</span>
+        <span class="sep">·</span>
+        <span class="cur">@andrea.makes</span>
+      </div>
+      <div class="acct-pill">
+        <span class="av">A</span>
+        @andrea.makes
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </header>
+
+    <!-- Canvas with scenes 2-5 -->
+    <main class="canvas">
+
+      <!-- ═════════ SCENE 2 — DASHBOARD ═════════ -->
+      <section class="scene scene-2 s2" style="position:relative">
+        <div class="dash-head">
+          <div>
+            <div class="page-title">Dashboard</div>
+            <div class="page-sub">Last sync: 2 minutes ago</div>
+          </div>
+          <div class="dash-actions">
+            <div class="select-trigger ps-trigger">
+              <span class="val">
+                <span class="ps-val-30">30 days</span>
+                <span class="ps-val-7">7 days</span>
+              </span>
+              <svg class="chev" width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div class="dropdown ps-dropdown">
+                <div class="opt">7 days <span class="ps-opt-7" style="display:inline-block;width:6px"></span></div>
+                <div class="opt on">30 days</div>
+                <div class="opt">90 days</div>
+              </div>
+            </div>
+            <button class="btn outline sync-btn">
+              <svg class="sync-icon" viewBox="0 0 16 16" fill="none"><path d="M14 8a6 6 0 1 1-2-4.5M11 1v3h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span class="sync-label-idle">Sync now</span>
+              <span class="sync-label-load">Syncing…</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="kpi-head"><div class="kpi-label">Total posts</div><span class="kpi-icon"><svg viewBox="0 0 16 16" fill="none"><path d="M2 12V4M5.5 12V7M9 12V8.5M12.5 12V5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span></div>
+            <div class="kpi-value">428</div>
+            <div class="kpi-hint">12 new this week</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-head"><div class="kpi-label">Total views</div><span class="kpi-icon"><svg viewBox="0 0 16 16" fill="none"><path d="M1.5 8s2.5-5 6.5-5 6.5 5 6.5 5-2.5 5-6.5 5-6.5-5-6.5-5z" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/></svg></span></div>
+            <div class="kpi-value">412,908</div>
+            <span class="kpi-delta">▲ 18.3%</span>
+          </div>
+          <div class="kpi">
+            <div class="kpi-head"><div class="kpi-label">Avg engagement</div><span class="kpi-icon"><svg viewBox="0 0 16 16" fill="none"><path d="M8 14s-5.5-3.5-5.5-7.5A3 3 0 0 1 8 4a3 3 0 0 1 5.5 2.5C13.5 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.5"/></svg></span></div>
+            <div class="kpi-value">6.42%</div>
+            <div class="kpi-hint">26,184 likes</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-head"><div class="kpi-label">Followers</div><span class="kpi-icon"><svg viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 13c0-2.2 1.8-4 4-4s4 1.8 4 4M11 6.5a2 2 0 0 0 0-4M11 9c2.2 0 4 1.8 4 4" stroke="currentColor" stroke-width="1.5"/></svg></span></div>
+            <div class="kpi-value">28,419</div>
+            <span class="kpi-delta">▲ 642</span>
+          </div>
+        </div>
+
+        <div class="card dash-chart" style="position:relative">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Last 30 days performance</div>
+              <div class="card-sub">Daily views · Apr 12 → May 11</div>
+            </div>
+            <div style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--muted)">claude-3.5</div>
+          </div>
+          <div class="card-body">
+            <span class="chart-anno">▲ 18.3% vs prev period</span>
+            <svg class="dash-chart-svg" viewBox="0 0 1400 200" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="dashG" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.18"/>
+                  <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <g stroke="#ececef">
+                <line x1="0" y1="50" x2="1400" y2="50"/>
+                <line x1="0" y1="100" x2="1400" y2="100"/>
+                <line x1="0" y1="150" x2="1400" y2="150"/>
+              </g>
+              <path class="chart-fill" d="M0,160 L100,155 200,158 300,130 400,140 500,108 600,118 700,82 800,92 900,60 1000,72 1100,38 1200,50 1300,22 1400,30 L1400,200 L0,200 Z" fill="url(#dashG)"/>
+              <path class="chart-draw" d="M0,160 L100,155 200,158 300,130 400,140 500,108 600,118 700,82 800,92 900,60 1000,72 1100,38 1200,50 1300,22 1400,30" fill="none" stroke="#7c3aed" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+              <circle cx="1400" cy="30" r="5" fill="#7c3aed"/>
+              <circle cx="1400" cy="30" r="11" fill="#7c3aed" fill-opacity="0.18"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="top-lists">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Top by engagement rate</div></div>
+            <div class="card-body" style="padding-top:4px">
+              <div class="top-row"><span class="num">#1</span><span class="txt">A short thread on the cost of context-switching…</span><span class="meta"><b>9.1%</b></span></div>
+              <div class="top-row"><span class="num">#2</span><span class="txt">Tools I quit using in 2026 (and what replaced them)</span><span class="meta"><b>7.8%</b></span></div>
+              <div class="top-row"><span class="num">#3</span><span class="txt">Reply-guy energy is a finite resource</span><span class="meta"><b>6.3%</b></span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">Top by views</div></div>
+            <div class="card-body" style="padding-top:4px">
+              <div class="top-row"><span class="num">#1</span><span class="txt">A short thread on the cost of context-switching…</span><span class="meta"><b>48.2K</b></span></div>
+              <div class="top-row"><span class="num">#2</span><span class="txt">Tools I quit using in 2026 (and what replaced them)</span><span class="meta"><b>32.7K</b></span></div>
+              <div class="top-row"><span class="num">#3</span><span class="txt">Reply-guy energy is a finite resource</span><span class="meta"><b>21.4K</b></span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ SCENE 3 — POSTS ═════════ -->
+      <section class="scene scene-3 s3">
+        <div class="posts-head">
+          <div>
+            <div class="page-title">Posts</div>
+            <div class="page-sub">All posts from your Threads account.</div>
+          </div>
+          <button class="btn outline">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M14 8a6 6 0 1 1-2-4.5M11 1v3h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Sync now
+          </button>
+        </div>
+
+        <div class="search-row">
+          <div class="search-input">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            Search post text…
+          </div>
+          <div style="margin-left:auto" class="results-count">428 of 428 posts</div>
+          <button class="btn outline csv-btn">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0l-3-3m3 3l3-3M3 13h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            CSV
+          </button>
+        </div>
+
+        <div class="posts-table-wrap">
+          <table class="ptbl">
+            <thead>
+              <tr>
+                <th style="min-width:340px">Post</th>
+                <th>
+                  <span class="sortable">Date <svg viewBox="0 0 16 16" fill="none"><path d="M5 6l3-3 3 3M5 10l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                </th>
+                <th class="right th-views">
+                  <span class="sortable">Views
+                    <svg class="arrow-up" viewBox="0 0 16 16" fill="none"><path d="M4 9l4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </span>
+                </th>
+                <th class="right">Likes</th>
+                <th class="right">Replies</th>
+                <th class="right">Reposts</th>
+                <th class="right">ER</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="row">
+                <td><span class="pl">A short thread on the cost of context-switching — and the quiet burnout it builds</span></td>
+                <td style="color:var(--muted)">11 May 2026</td>
+                <td class="num"><b>48,214</b></td>
+                <td class="num">2,841</td>
+                <td class="num">412</td>
+                <td class="num">187</td>
+                <td class="num">9.1%</td>
+              </tr>
+              <tr class="row">
+                <td><span class="pl">Tools I quit using in 2026 (and the boring ones that replaced them)</span></td>
+                <td style="color:var(--muted)">10 May 2026</td>
+                <td class="num"><b>32,718</b></td>
+                <td class="num">1,920</td>
+                <td class="num">298</td>
+                <td class="num">142</td>
+                <td class="num">7.8%</td>
+              </tr>
+              <tr class="row">
+                <td><span class="pl">Reply-guy energy is a finite resource — here's how I budget mine</span></td>
+                <td style="color:var(--muted)">9 May 2026</td>
+                <td class="num"><b>21,402</b></td>
+                <td class="num">1,184</td>
+                <td class="num">221</td>
+                <td class="num">96</td>
+                <td class="num">6.3%</td>
+              </tr>
+              <tr class="row">
+                <td><span class="pl">The cheapest hour I spend each week is the one where I plan nothing</span></td>
+                <td style="color:var(--muted)">7 May 2026</td>
+                <td class="num"><b>18,907</b></td>
+                <td class="num">988</td>
+                <td class="num">175</td>
+                <td class="num">71</td>
+                <td class="num">5.4%</td>
+              </tr>
+              <tr class="row">
+                <td><span class="pl">Drafts I'm scared to post — and what they all secretly have in common</span></td>
+                <td style="color:var(--muted)">5 May 2026</td>
+                <td class="num"><b>14,553</b></td>
+                <td class="num">762</td>
+                <td class="num">142</td>
+                <td class="num">58</td>
+                <td class="num">4.9%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═════════ SCENE 4 — POST DETAIL + AI ═════════ -->
+      <section class="scene scene-4 s4">
+        <div class="pd-head">
+          <span class="pd-back">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 4l-4 4 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Back to posts
+          </span>
+          <button class="btn primary lg ai-btn">
+            <span class="ai-btn-idle">
+              <svg viewBox="0 0 16 16" fill="none" style="margin-right:6px"><path d="M8 1.5l1.5 4 4 1.5-4 1.5L8 12.5l-1.5-4-4-1.5 4-1.5L8 1.5z" fill="currentColor"/></svg>
+              Analyze with AI
+            </span>
+            <span class="ai-btn-load">
+              <svg class="ai-spinner" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M14 8a6 6 0 1 1-2-4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Analyzing…
+            </span>
+          </button>
+        </div>
+
+        <div class="s4-row">
+          <div class="card pd-card">
+            <div class="pd-meta">
+              <span class="pd-badge">TEXT</span>
+              <span>Published May 11, 2026 · 08:42</span>
+              <span style="margin-left:auto;font-size:11.5px;color:var(--muted)">Open in Threads ↗</span>
+            </div>
+            <div style="font-size:14px;font-weight:600;color:var(--ink)">Post detail</div>
+            <div class="pd-body">A short thread on the cost of context-switching — every time you flip between Slack, mail, and a brief you'd been writing for an hour, the version of you that loved that brief gets a little smaller. The fix isn't more focus apps. It's fewer surfaces.</div>
+            <div class="pd-metrics">
+              <div class="pd-m"><span class="lbl"><svg viewBox="0 0 16 16" fill="none"><path d="M1.5 8s2.5-5 6.5-5 6.5 5 6.5 5-2.5 5-6.5 5-6.5-5-6.5-5z" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/></svg>Views</span><span class="v">48,214</span></div>
+              <div class="pd-m"><span class="lbl"><svg viewBox="0 0 16 16" fill="none"><path d="M8 14s-5.5-3.5-5.5-7.5A3 3 0 0 1 8 4a3 3 0 0 1 5.5 2.5C13.5 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.5"/></svg>Likes</span><span class="v">2,841</span></div>
+              <div class="pd-m"><span class="lbl"><svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 0 1 12 0v3l-2-1H8a6 6 0 0 1-6-2z" stroke="currentColor" stroke-width="1.5"/></svg>Replies</span><span class="v">412</span></div>
+              <div class="pd-m"><span class="lbl"><svg viewBox="0 0 16 16" fill="none"><path d="M3 6l2-2 2 2M5 4v8M13 10l-2 2-2-2M11 12V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Reposts</span><span class="v">187</span></div>
+              <div class="pd-m"><span class="lbl"><svg viewBox="0 0 16 16" fill="none"><path d="M3 4h10v8l-3-2H6l-3 2V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Quotes</span><span class="v">96</span></div>
+              <div class="pd-m"><span class="lbl"><svg viewBox="0 0 16 16" fill="none"><circle cx="4" cy="8" r="1.5" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="4" r="1.5" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5.4 7.2l5.2-2.4M5.4 8.8l5.2 2.4" stroke="currentColor" stroke-width="1.5"/></svg>Shares</span><span class="v">52</span></div>
+            </div>
+            <div class="pd-er">Engagement rate: <b>9.1%</b></div>
+          </div>
+
+          <div class="ai-panel">
+            <div class="ai-panel-head">
+              <div class="spark"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.5 4 4 1.5-4 1.5L8 12.5l-1.5-4-4-1.5 4-1.5L8 1.5z" fill="currentColor"/></svg></div>
+              <div class="t">AI Performance Analysis</div>
+              <div class="badge">Live</div>
+            </div>
+            <div class="ai-placeholder">
+              <svg viewBox="0 0 32 32" fill="none"><path d="M16 4l3 8 8 3-8 3-3 8-3-8-8-3 8-3 3-8z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+              <div>Click <b style="color:var(--ink)">Analyze with AI</b> to get a<br/>qualitative LLM explanation.</div>
+            </div>
+            <div class="ai-thinking-row"><div class="ai-thinking"><span></span><span></span><span></span></div></div>
+            <div class="ai-line"><span class="dot"></span><div><b>Hook:</b> "A short thread on…" — a narrow-scope opener. Outperforms your usual openers by <b>2.1×</b>.</div></div>
+            <div class="ai-line"><span class="dot"></span><div><b>Tone:</b> Reflective + slightly weary. Top-quartile for reply rate across your archive.</div></div>
+            <div class="ai-line"><span class="dot"></span><div><b>Audience:</b> 68% of replies are first-person disclosures, not debates — a strong tribe signal.</div></div>
+            <div class="ai-line"><span class="dot"></span><div><b>Timing:</b> Tuesday 8–10am is your best reply window. This post landed right in the sweet spot.</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ SCENE 5 — PATTERN DETECTION ═════════ -->
+      <section class="scene scene-5 s5">
+        <div>
+          <div class="page-title">AI Analysis</div>
+          <div class="page-sub">Qualitative LLM analysis. Pattern detection runs across posts.</div>
+        </div>
+        <div class="ai-tabs">
+          <span class="on">Pattern Detection</span>
+          <span>History</span>
+          <span>Performance (per post)</span>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Pattern Detection</div>
+              <div class="card-sub">Compare top vs bottom posts in a given period to surface consistent patterns.</div>
+            </div>
+          </div>
+          <div class="pf-form">
+            <div class="pf-field">
+              <label>Period</label>
+              <div class="select-trigger" style="min-width:140px">
+                <span class="val">30 days</span>
+                <svg class="chev" width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </div>
+            <div class="pf-field">
+              <label>Sample (top + bottom)</label>
+              <div class="select-trigger" style="min-width:140px">
+                <span class="val">20 + 20</span>
+                <svg class="chev" width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </div>
+            <button class="btn primary lg gen-btn">
+              <span class="gen-btn-idle">
+                <svg viewBox="0 0 16 16" fill="none" style="margin-right:6px"><path d="M8 1.5l1.5 4 4 1.5-4 1.5L8 12.5l-1.5-4-4-1.5 4-1.5L8 1.5z" fill="currentColor"/></svg>
+                Generate Pattern Report
+              </span>
+              <span class="gen-btn-load">
+                <svg class="gen-spinner" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M14 8a6 6 0 1 1-2-4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Analyzing…
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card pattern-card">
+          <div class="card-head">
+            <div class="card-title">Pattern Report</div>
+            <div style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--muted)">claude-3.5-sonnet · 30 days · 20 + 20</div>
+          </div>
+          <div class="pattern-report">
+            <div class="pr-block">
+              <h3><span class="num">01</span> Hook style</h3>
+              <p>Top performers open with <b>short, reflective narratives</b>. Bottom performers open with <b>lists or promos</b>.</p>
+            </div>
+            <div class="pr-block">
+              <h3><span class="num">02</span> Topic clusters</h3>
+              <ul>
+                <li><b>Productivity ↔ identity</b> — top-quartile reply rate (<b>2.4×</b>).</li>
+                <li><b>Personal rituals</b> — high save rate (<b>3.1×</b>).</li>
+              </ul>
+            </div>
+            <div class="pr-block">
+              <h3><span class="num">03</span> Timing</h3>
+              <p>The <b>Tuesday 8–10 AM</b> window accounts for <b>38%</b> of total top-quartile views.</p>
+            </div>
+            <div class="pr-block">
+              <h3><span class="num">04</span> Recommendations</h3>
+              <ul>
+                <li>Use a reflective hook (narrow scope), not a listicle.</li>
+                <li>Schedule posts for the Tuesday morning window.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ═════════ SCENE 6 — FINAL BRAND ═════════ -->
+  <section class="scene scene-6 s6">
+    <div class="s6-stack">
+      <div class="s6-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>
+        </svg>
+      </div>
+      <h1 class="s6-title">ThreadLens</h1>
+      <p class="s6-tag">Turn Threads data into <span class="serif">actionable AI insights.</span></p>
+    </div>
+  </section>
+
+  <!-- ═════════ Cursor ═════════ -->
+  <svg class="cursor" viewBox="0 0 24 24" fill="none">
+    <path d="M3 2l6 18 3-7 7-3z" fill="white" stroke="#0a0a0a" stroke-width="1.4" stroke-linejoin="round"/>
+  </svg>
+
+  <!-- ═════════ Click pulses ═════════ -->
+  <div class="pulse pulse-1"></div>
+  <div class="pulse pulse-2"></div>
+  <div class="pulse pulse-3"></div>
+  <div class="pulse pulse-4"></div>
+  <div class="pulse pulse-5"></div>
+  <div class="pulse pulse-6"></div>
+
+  <!-- ═════════ Callout tooltips — explain features on-screen ═════════ -->
+  <div class="callout c-1">
+    <div class="c-badge">Period filter</div>
+    <div class="c-title">Switch the time range</div>
+    <div class="c-body">Toggle between <b>7, 30, or 90 days</b>. Every KPI and chart auto-refreshes instantly.</div>
+  </div>
+  <div class="callout c-2">
+    <div class="c-badge">Sync now</div>
+    <div class="c-title">Pull the latest data</div>
+    <div class="c-body">Syncs directly with the official <b>Threads Graph API</b> — pulls posts &amp; insights into your database.</div>
+  </div>
+  <div class="callout c-3">
+    <div class="c-badge">Sortable</div>
+    <div class="c-title">Sort by any metric</div>
+    <div class="c-body">Click any column to sort: <b>Views, Likes, Replies, Reposts, ER</b> — all sortable.</div>
+  </div>
+  <div class="callout c-5">
+    <div class="c-badge">AI Analysis</div>
+    <div class="c-title">Per-post AI explanation</div>
+    <div class="c-body">The LLM breaks down <b>hook, tone, audience reaction, and timing</b> — all from your own post data.</div>
+  </div>
+  <div class="callout c-6">
+    <div class="c-badge">Pattern Detection</div>
+    <div class="c-title">Top vs bottom posts</div>
+    <div class="c-body">AI compares top &amp; bottom performers to find <b>consistent patterns</b> across your archive.</div>
+  </div>
+
+  <!-- Scene captions (bottom) -->
+  <div class="scene-caption cap-s2"><span class="dot"></span><b>Dashboard</b> · 4 core KPIs &amp; daily trend</div>
+  <div class="scene-caption cap-s3"><span class="dot"></span><b>Posts</b> · sortable, searchable, CSV-exportable</div>
+  <div class="scene-caption cap-s4"><span class="dot"></span><b>Post Detail</b> · click for AI explanation</div>
+  <div class="scene-caption cap-s5"><span class="dot"></span><b>Pattern Detection</b> · AI reads patterns across posts</div>
+
+  <!-- Timeline progress -->
+  <div class="timeline-bar"></div>
+
+  <div class="vignette"></div>
+</div>
+
+</body>
+</html>
