@@ -51,11 +51,21 @@ export interface ComposeContext {
   brief: string;
   /** How many draft variants to produce. */
   count: number;
-  /** Hard character ceiling per draft (Threads limit). */
+  /** Hard character ceiling per post/part (Threads limit). */
   charLimit: number;
+  /** When true, produce connected multi-part threads instead of standalone posts. */
+  thread: boolean;
   /** A few of the user's best-performing posts, for voice + topic grounding. */
   topPosts: Array<{ text: string | null; views: number; engagementRate: number }>;
 }
+
+/** Shared tone guidance so generated posts don't read stiff/corporate. */
+const VOICE_RULES = `GAYA NULIS (WAJIB):
+- Santai, kayak ngobrol sama temen — bukan bahasa korporat, press release, atau caption brand.
+- Boleh pakai bahasa sehari-hari, kalimat pendek, dan sedikit slang yang wajar. Boleh mulai kalimat dengan "Jadi", "Nah", "Btw".
+- Hindari kata kaku/klise: "mari", "yuk simak", "di era digital ini", "tak dapat dipungkiri", "sahabat", emoji berlebihan.
+- Hook di kalimat pertama harus bikin orang berhenti scroll. Tulis kayak manusia, bukan AI.
+- Tanpa hashtag berlebihan (maks 1-2 kalau beneran relevan).`;
 
 export function buildComposePrompt(ctx: ComposeContext): string {
   const examples = ctx.topPosts
@@ -67,38 +77,74 @@ export function buildComposePrompt(ctx: ComposeContext): string {
     )
     .join("\n");
 
-  return `Kamu adalah content strategist yang menulis draft post Threads untuk seorang creator, meniru gaya dan suara mereka berdasarkan post yang terbukti perform.
+  const grounding = `${
+    examples
+      ? `POST TERBAIK CREATOR INI (tiru voice & topiknya):\n${examples}\n`
+      : "Belum ada data post yang cukup; tulis dengan gaya percakapan yang natural.\n"
+  }
+${ctx.brief ? `BRIEF DARI USER:\n"""\n${ctx.brief}\n"""` : "Tidak ada brief spesifik — usulkan ide post baru yang sejalan dengan topik & gaya yang sudah perform."}`;
 
-${examples ? `POST TERBAIK CREATOR INI (referensi gaya & topik):\n${examples}\n` : "Belum ada data post yang cukup; tulis dengan gaya percakapan yang natural.\n"}
-${ctx.brief ? `BRIEF DARI USER:\n"""\n${ctx.brief}\n"""` : "Tidak ada brief spesifik — usulkan ide post baru yang sejalan dengan topik & gaya yang sudah perform."}
+  if (ctx.thread) {
+    return `Kamu kreator Threads yang nulis thread panjang (beberapa post nyambung, kayak utas/komen-dalam-komen) dengan suara si creator.
+
+${grounding}
+
+${VOICE_RULES}
 
 TASK:
-Tulis ${ctx.count} draft post Threads yang berbeda-beda. Aturan:
-- Tiap draft maksimal ${ctx.charLimit} karakter (Threads limit). Hitung dengan ketat.
-- Tiru voice creator dari contoh: tone, panjang kalimat, cara buka (hook), penggunaan pertanyaan/CTA.
-- Variasikan angle antar-draft (mis. hook beda, format beda: opini / cerita / list / pertanyaan).
-- Bahasa Indonesia natural, bukan kaku/korporat. Tanpa hashtag berlebihan (maks 1-2 kalau relevan).
+Tulis ${ctx.count} usulan thread yang berbeda. Tiap thread terdiri dari beberapa BAGIAN nyambung (3-6 bagian):
+- Bagian pertama = hook kuat yang berdiri sendiri dan bikin penasaran.
+- Tiap bagian maksimal ${ctx.charLimit} karakter. Hitung ketat.
+- Antar-bagian harus ngalir/nyambung, satu ide per bagian, jangan diulang-ulang.
+- Bagian terakhir = penutup/CTA/pertanyaan biar orang reply.
+
+FORMAT OUTPUT (WAJIB), tanpa teks lain di luar tag:
+<draft><part>hook bagian 1</part><part>isi bagian 2</part><part>penutup bagian 3</part></draft>
+${ctx.count > 1 ? "<draft><part>...</part><part>...</part></draft>\n...sebanyak " + ctx.count + " draft thread." : ""}`;
+  }
+
+  return `Kamu kreator Threads yang nulis draft post buat dirinya sendiri, dengan suara yang udah kebukti perform.
+
+${grounding}
+
+${VOICE_RULES}
+
+TASK:
+Tulis ${ctx.count} draft post Threads yang beda-beda. Aturan:
+- Tiap draft maksimal ${ctx.charLimit} karakter (Threads limit). Hitung ketat.
+- Variasikan angle antar-draft (hook beda, format beda: opini / cerita / list / pertanyaan).
 - JANGAN tambahkan penjelasan, nomor, atau komentar apa pun di luar isi post.
 
-FORMAT OUTPUT (WAJIB):
-Bungkus SETIAP draft persis seperti ini, tanpa teks lain di luar tag:
+FORMAT OUTPUT (WAJIB), tanpa teks lain di luar tag:
 <draft>isi post draft pertama</draft>
 <draft>isi post draft kedua</draft>
 ...sebanyak ${ctx.count} draft.`;
 }
 
-/** Extract <draft>...</draft> blocks from a model response, trimmed and non-empty. */
-export function parseDrafts(raw: string): string[] {
-  const out: string[] = [];
+/**
+ * Extract drafts from a model response. Each draft is returned as an array of
+ * parts: single-post drafts have one part; thread drafts (using <part> tags)
+ * have several. Empty parts are dropped.
+ */
+export function parseDrafts(raw: string): string[][] {
+  const drafts: string[][] = [];
   const re = /<draft>([\s\S]*?)<\/draft>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(raw)) !== null) {
-    const t = m[1].trim();
-    if (t) out.push(t);
+    const inner = m[1].trim();
+    if (!inner) continue;
+    const partRe = /<part>([\s\S]*?)<\/part>/gi;
+    const parts: string[] = [];
+    let pm: RegExpExecArray | null;
+    while ((pm = partRe.exec(inner)) !== null) {
+      const t = pm[1].trim();
+      if (t) parts.push(t);
+    }
+    drafts.push(parts.length > 0 ? parts : [inner]);
   }
-  // Fallback: if the model ignored the tags, return the whole thing as one draft.
-  if (out.length === 0 && raw.trim()) out.push(raw.trim());
-  return out;
+  // Fallback: if the model ignored the tags, treat the whole thing as one draft.
+  if (drafts.length === 0 && raw.trim()) drafts.push([raw.trim()]);
+  return drafts;
 }
 
 export interface PatternContext {

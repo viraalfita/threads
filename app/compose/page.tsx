@@ -16,8 +16,8 @@ export default async function ComposePage() {
       <div>
         <h1 className="text-2xl font-semibold">Compose</h1>
         <p className="text-sm text-muted-foreground">
-          Tulis post baru ke Threads. AI bisa bantu nyusun draft dari pola konten yang perform — kamu yang
-          edit dan tekan publish.
+          Tulis post baru ke Threads, satu post atau thread panjang (beberapa bagian nyambung). AI bisa bantu
+          nyusun draft dari pola konten yang perform — kamu yang edit dan tekan publish.
         </p>
       </div>
 
@@ -30,7 +30,14 @@ export default async function ComposePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Composer canPublish={canPublish} />
+          <Composer
+            canPublish={canPublish}
+            author={{
+              username: user.username,
+              name: user.name,
+              avatarUrl: user.threads_profile_picture_url,
+            }}
+          />
         </CardContent>
       </Card>
     </div>

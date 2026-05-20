@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveUserToken } from "@/lib/user";
-import { publishTextPost, THREADS_TEXT_LIMIT } from "@/lib/threads/api";
+import { publishThreadChain, THREADS_TEXT_LIMIT } from "@/lib/threads/api";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -21,19 +21,28 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const text = String(body?.text ?? "").trim();
+  // Accept either a single post (`text`) or a thread chain (`segments`).
+  const rawSegments: string[] = Array.isArray(body?.segments)
+    ? body.segments.map((s: unknown) => String(s ?? ""))
+    : [String(body?.text ?? "")];
+  const segments = rawSegments.map((s) => s.trim()).filter(Boolean);
 
-  if (!text) return NextResponse.json({ error: "empty_text" }, { status: 400 });
-  if (text.length > THREADS_TEXT_LIMIT) {
+  if (segments.length === 0) return NextResponse.json({ error: "empty_text" }, { status: 400 });
+  if (segments.some((s) => s.length > THREADS_TEXT_LIMIT)) {
     return NextResponse.json(
-      { error: `too_long (max ${THREADS_TEXT_LIMIT})` },
+      { error: `too_long (max ${THREADS_TEXT_LIMIT} per part)` },
       { status: 400 },
     );
   }
 
   try {
-    const result = await publishTextPost(user.threads_user_id, token, text);
-    return NextResponse.json({ ok: true, id: result.id, permalink: result.permalink });
+    const result = await publishThreadChain(user.threads_user_id, token, segments);
+    return NextResponse.json({
+      ok: true,
+      ids: result.ids,
+      count: result.ids.length,
+      permalink: result.permalink,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "publish_failed";
     return NextResponse.json({ error: msg }, { status: 502 });

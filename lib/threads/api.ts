@@ -203,15 +203,17 @@ interface ThreadsCreationId {
 }
 
 /**
- * Publish a text-only thread. Threads publishing is a two-step flow:
+ * Publish a single text-only thread. Threads publishing is a two-step flow:
  *   1. create a media container (`/{user}/threads`)
  *   2. publish that container (`/{user}/threads_publish`)
- * Requires the `threads_content_publish` scope. Returns the published media id.
+ * Pass `replyToId` to publish this post as a reply (used to build a thread chain).
+ * Requires the `threads_content_publish` scope.
  */
 export async function publishTextPost(
   threadsUserId: string,
   token: string,
   text: string,
+  replyToId?: string,
 ): Promise<{ id: string; permalink?: string }> {
   const trimmed = text.trim();
   if (!trimmed) throw new Error("Cannot publish an empty post.");
@@ -222,6 +224,7 @@ export async function publishTextPost(
   const container = await gpost<ThreadsCreationId>(`/${threadsUserId}/threads`, token, {
     media_type: "TEXT",
     text: trimmed,
+    ...(replyToId ? { reply_to_id: replyToId } : {}),
   });
 
   const published = await gpost<ThreadsCreationId>(`/${threadsUserId}/threads_publish`, token, {
@@ -238,6 +241,34 @@ export async function publishTextPost(
   }
 
   return { id: published.id, permalink };
+}
+
+/**
+ * Publish a chain of connected posts ("thread"). The first segment is the root
+ * post; each following segment is published as a reply to the previous one,
+ * producing the comment-in-comment layout. Returns every published id plus the
+ * root post's permalink.
+ */
+export async function publishThreadChain(
+  threadsUserId: string,
+  token: string,
+  segments: string[],
+): Promise<{ ids: string[]; permalink?: string }> {
+  const parts = segments.map((s) => s.trim()).filter(Boolean);
+  if (parts.length === 0) throw new Error("Cannot publish an empty thread.");
+
+  const ids: string[] = [];
+  let permalink: string | undefined;
+  let replyTo: string | undefined;
+
+  for (const part of parts) {
+    const res = await publishTextPost(threadsUserId, token, part, replyTo);
+    ids.push(res.id);
+    if (replyTo === undefined) permalink = res.permalink; // root permalink only
+    replyTo = res.id;
+  }
+
+  return { ids, permalink };
 }
 
 function flattenInsights(res: ThreadsInsightsResponse, names: string[]): Record<string, number> {
