@@ -33,7 +33,8 @@ Register a Meta Developer app with the **Threads** product enabled.
 - App ID → `META_APP_ID`
 - App Secret → `META_APP_SECRET`
 - Redirect URI (must match Meta dashboard exactly) → `META_REDIRECT_URI=http://localhost:3000/api/auth/threads/callback`
-- Permissions/scopes requested: `threads_basic`, `threads_manage_insights`
+- Permissions/scopes requested: `threads_basic`, `threads_manage_insights`, `threads_content_publish`
+- `threads_content_publish` powers the Compose feature and needs **Advanced Access** (Meta App Review) before non-tester accounts can publish. Existing testers/admins can publish without review.
 
 ### OpenRouter
 
@@ -58,6 +59,10 @@ npm run dev      # http://localhost:3000
 
 - **Performance** (per post): open `/posts`, click a row → "Analisa dengan AI".
 - **Pattern detection** (across posts): `/analysis` → choose period + sample size → Generate.
+
+## Compose & publish
+
+- `/compose` — write a post and publish it to Threads. Optional **Saranin draft** asks the LLM to draft variants grounded in your best-performing posts; you pick one, edit it, then press **Publish** (human-in-the-loop, no auto-posting). 500-char limit enforced.
 
 Both calls go through OpenRouter (`POST /api/analysis/{performance,pattern}`) and are persisted to `threadlens.llm_analysis`.
 

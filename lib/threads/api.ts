@@ -9,7 +9,14 @@ import {
 const GRAPH_BASE = "https://graph.threads.net/v1.0";
 const AUTH_BASE = "https://threads.net/oauth";
 
-export const THREADS_SCOPES = ["threads_basic", "threads_manage_insights"];
+export const THREADS_SCOPES = [
+  "threads_basic",
+  "threads_manage_insights",
+  "threads_content_publish",
+];
+
+/** Threads enforces a 500-character limit on a single text post. */
+export const THREADS_TEXT_LIMIT = 500;
 
 // ---- OAuth helpers ------------------------------------------------------
 
@@ -173,6 +180,64 @@ export async function getAccountInsights(
   if (opts.until) q.until = String(opts.until);
   const res = await gget<ThreadsInsightsResponse>(`/${threadsUserId}/threads_insights`, token, q);
   return flattenInsights(res, ACCOUNT_INSIGHT_METRICS) as unknown as FlatAccountInsights;
+}
+
+// ---- Publishing ---------------------------------------------------------
+
+async function gpost<T>(path: string, token: string, params: Record<string, string>): Promise<T> {
+  const body = new URLSearchParams({ ...params, access_token: token });
+  const res = await fetch(`${GRAPH_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Threads API ${path} failed: ${res.status} ${await res.text()}`);
+  }
+  return res.json();
+}
+
+interface ThreadsCreationId {
+  id: string;
+}
+
+/**
+ * Publish a text-only thread. Threads publishing is a two-step flow:
+ *   1. create a media container (`/{user}/threads`)
+ *   2. publish that container (`/{user}/threads_publish`)
+ * Requires the `threads_content_publish` scope. Returns the published media id.
+ */
+export async function publishTextPost(
+  threadsUserId: string,
+  token: string,
+  text: string,
+): Promise<{ id: string; permalink?: string }> {
+  const trimmed = text.trim();
+  if (!trimmed) throw new Error("Cannot publish an empty post.");
+  if (trimmed.length > THREADS_TEXT_LIMIT) {
+    throw new Error(`Post exceeds the ${THREADS_TEXT_LIMIT}-character limit.`);
+  }
+
+  const container = await gpost<ThreadsCreationId>(`/${threadsUserId}/threads`, token, {
+    media_type: "TEXT",
+    text: trimmed,
+  });
+
+  const published = await gpost<ThreadsCreationId>(`/${threadsUserId}/threads_publish`, token, {
+    creation_id: container.id,
+  });
+
+  // Best-effort: fetch the permalink so the UI can link to the live post.
+  let permalink: string | undefined;
+  try {
+    const detail = await gget<ThreadsPost>(`/${published.id}`, token, { fields: "permalink" });
+    permalink = detail.permalink;
+  } catch {
+    // permalink is non-essential; ignore failures
+  }
+
+  return { id: published.id, permalink };
 }
 
 function flattenInsights(res: ThreadsInsightsResponse, names: string[]): Record<string, number> {

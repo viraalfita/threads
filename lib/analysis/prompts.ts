@@ -46,6 +46,61 @@ PENTING — FORMAT OUTPUT:
 - Kalau perlu banding-bandingin aspek, tulis sebagai bullet list: "**Hook:** observasi..." bukan tabel.`;
 }
 
+export interface ComposeContext {
+  /** Optional brief/topic from the user; empty means "free idea based on what works". */
+  brief: string;
+  /** How many draft variants to produce. */
+  count: number;
+  /** Hard character ceiling per draft (Threads limit). */
+  charLimit: number;
+  /** A few of the user's best-performing posts, for voice + topic grounding. */
+  topPosts: Array<{ text: string | null; views: number; engagementRate: number }>;
+}
+
+export function buildComposePrompt(ctx: ComposeContext): string {
+  const examples = ctx.topPosts
+    .map(
+      (p, i) =>
+        `${i + 1}. [views=${p.views}, ER=${(p.engagementRate * 100).toFixed(2)}%] ${(p.text ?? "(no text)")
+          .replace(/\s+/g, " ")
+          .slice(0, 240)}`,
+    )
+    .join("\n");
+
+  return `Kamu adalah content strategist yang menulis draft post Threads untuk seorang creator, meniru gaya dan suara mereka berdasarkan post yang terbukti perform.
+
+${examples ? `POST TERBAIK CREATOR INI (referensi gaya & topik):\n${examples}\n` : "Belum ada data post yang cukup; tulis dengan gaya percakapan yang natural.\n"}
+${ctx.brief ? `BRIEF DARI USER:\n"""\n${ctx.brief}\n"""` : "Tidak ada brief spesifik — usulkan ide post baru yang sejalan dengan topik & gaya yang sudah perform."}
+
+TASK:
+Tulis ${ctx.count} draft post Threads yang berbeda-beda. Aturan:
+- Tiap draft maksimal ${ctx.charLimit} karakter (Threads limit). Hitung dengan ketat.
+- Tiru voice creator dari contoh: tone, panjang kalimat, cara buka (hook), penggunaan pertanyaan/CTA.
+- Variasikan angle antar-draft (mis. hook beda, format beda: opini / cerita / list / pertanyaan).
+- Bahasa Indonesia natural, bukan kaku/korporat. Tanpa hashtag berlebihan (maks 1-2 kalau relevan).
+- JANGAN tambahkan penjelasan, nomor, atau komentar apa pun di luar isi post.
+
+FORMAT OUTPUT (WAJIB):
+Bungkus SETIAP draft persis seperti ini, tanpa teks lain di luar tag:
+<draft>isi post draft pertama</draft>
+<draft>isi post draft kedua</draft>
+...sebanyak ${ctx.count} draft.`;
+}
+
+/** Extract <draft>...</draft> blocks from a model response, trimmed and non-empty. */
+export function parseDrafts(raw: string): string[] {
+  const out: string[] = [];
+  const re = /<draft>([\s\S]*?)<\/draft>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(raw)) !== null) {
+    const t = m[1].trim();
+    if (t) out.push(t);
+  }
+  // Fallback: if the model ignored the tags, return the whole thing as one draft.
+  if (out.length === 0 && raw.trim()) out.push(raw.trim());
+  return out;
+}
+
 export interface PatternContext {
   periodDays: number;
   topPosts: Array<{ text: string | null; views: number; engagementRate: number }>;

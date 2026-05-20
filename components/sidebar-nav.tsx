@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ListOrdered, Sparkles, Settings, AtSign } from "lucide-react";
+import { LayoutDashboard, ListOrdered, Sparkles, Settings, AtSign, PenSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/posts", label: "Posts", icon: ListOrdered },
+  { href: "/compose", label: "Compose", icon: PenSquare },
   { href: "/analysis", label: "AI Analysis", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
