@@ -65,7 +65,8 @@ export default function PrivacyPolicyPage() {
       </h2>
       <ul>
         <li>To render your Threads analytics dashboard.</li>
-        <li>To send post metadata as prompts to an LLM provider (OpenRouter) so it can produce analysis.</li>
+        <li>To send post metadata as prompts to an LLM gateway (powered by Anthropic Claude) so it can produce analysis and draft post suggestions.</li>
+        <li>To publish a post to your Threads account — only when you write or approve the content and explicitly press Publish.</li>
         <li>To store analysis history so you can review it later.</li>
         <li>To maintain the connection (refresh access tokens) for as long as your Threads account is linked.</li>
       </ul>
@@ -107,8 +108,8 @@ export default function PrivacyPolicyPage() {
           <b>Meta / Threads Graph API</b> — source of Threads data (you authorize access through OAuth).
         </li>
         <li>
-          <b>OpenRouter and the chosen LLM provider</b> — process analysis prompts. Post content (text and metrics) is
-          sent to the LLM provider when you trigger an analysis.
+          <b>LLM gateway (powered by Anthropic Claude)</b> — processes analysis prompts and draft suggestions. Post
+          content (text and metrics) is sent to the gateway when you trigger an analysis or request a draft.
         </li>
       </ul>
 

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getActiveUser } from "@/lib/user";
-import { chat } from "@/lib/llm/openrouter";
+import { chat } from "@/lib/llm/gateway";
 import { buildPerformancePrompt } from "@/lib/analysis/prompts";
-import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -72,9 +71,7 @@ async function handle(req: NextRequest) {
     },
   });
 
-  const model = env.openrouterAnalysisModel();
   const llm = await chat({
-    model,
     messages: [
       { role: "system", content: "Kamu content strategist Threads yang spesifik dan ringkas." },
       { role: "user", content: prompt },
@@ -83,17 +80,17 @@ async function handle(req: NextRequest) {
     max_tokens: 800,
   });
 
-  const output = llm.choices?.[0]?.message?.content ?? "(no output)";
+  const output = llm.text || "(no output)";
   await db.from("llm_analysis").insert({
     user_id: user.id,
     post_id: post.id,
     type: "performance",
     input_context: { avgViews, avgEr, ins },
     output,
-    model_used: model,
-    prompt_tokens: llm.usage?.prompt_tokens ?? null,
-    completion_tokens: llm.usage?.completion_tokens ?? null,
+    model_used: llm.model,
+    prompt_tokens: llm.usage.prompt_tokens,
+    completion_tokens: llm.usage.completion_tokens,
   });
 
-  return NextResponse.json({ output, model });
+  return NextResponse.json({ output, model: llm.model });
 }

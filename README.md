@@ -9,7 +9,7 @@ Threads content analytics + LLM insights. Single-user MVP per `PRD-threads-analy
 - Recharts (charts), next-themes (dark/light), sonner (toasts), lucide-react
 - Supabase (PostgreSQL, schema `threadlens`) — accessed via service-role on the server only
 - Threads Graph API — `threads_basic`, `threads_manage_insights`
-- LLM via OpenRouter (default models: Claude Sonnet 4.6 / Haiku 4.5)
+- LLM via patunganai gateway (Anthropic Messages-compatible; gateway picks the model)
 - Vercel Cron for incremental sync every 6h
 
 ## Setup
@@ -36,10 +36,10 @@ Register a Meta Developer app with the **Threads** product enabled.
 - Permissions/scopes requested: `threads_basic`, `threads_manage_insights`, `threads_content_publish`
 - `threads_content_publish` powers the Compose feature and needs **Advanced Access** (Meta App Review) before non-tester accounts can publish. Existing testers/admins can publish without review.
 
-### OpenRouter
+### LLM gateway
 
-- API key → `OPENROUTER_API_KEY`
-- Optional model overrides via `OPENROUTER_MODEL_ANALYSIS` and `OPENROUTER_MODEL_LIGHT`.
+- API key → `LLM_GATEWAY_API_KEY` (patunganai gateway, Anthropic Messages-compatible)
+- Optional URL override via `LLM_GATEWAY_URL`. The gateway selects the model itself.
 
 ## Run
 
@@ -64,7 +64,7 @@ npm run dev      # http://localhost:3000
 
 - `/compose` — write a post and publish it to Threads. Optional **Saranin draft** asks the LLM to draft variants grounded in your best-performing posts; you pick one, edit it, then press **Publish** (human-in-the-loop, no auto-posting). 500-char limit enforced.
 
-Both calls go through OpenRouter (`POST /api/analysis/{performance,pattern}`) and are persisted to `threadlens.llm_analysis`.
+Both calls go through the LLM gateway (`POST /api/analysis/{performance,pattern}`) and are persisted to `threadlens.llm_analysis`.
 
 ## Out of scope (per PRD §7)
 
@@ -100,8 +100,8 @@ lib/
   threads/types.ts
   user.ts                      getCurrentUser + token decryption helper
   sync.ts                      Initial + incremental sync logic
-  llm/openrouter.ts            chat() + chatStream()
-  analysis/prompts.ts          Performance + Pattern prompt templates
+  llm/gateway.ts               chat() — patunganai gateway (Anthropic Messages)
+  analysis/prompts.ts          Performance + Pattern + Compose prompt templates
   queries.ts                   Dashboard + post queries
   markdown.tsx                 Minimal markdown renderer for LLM output
   utils.ts                     cn(), formatters

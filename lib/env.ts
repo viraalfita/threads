@@ -12,11 +12,9 @@ export const env = {
   metaAppId: () => required("META_APP_ID", process.env.META_APP_ID),
   metaAppSecret: () => required("META_APP_SECRET", process.env.META_APP_SECRET),
   metaRedirectUri: () => required("META_REDIRECT_URI", process.env.META_REDIRECT_URI),
-  openrouterKey: () => required("OPENROUTER_API_KEY", process.env.OPENROUTER_API_KEY),
-  openrouterAnalysisModel: () =>
-    process.env.OPENROUTER_MODEL_ANALYSIS ?? "anthropic/claude-sonnet-4.6",
-  openrouterLightModel: () =>
-    process.env.OPENROUTER_MODEL_LIGHT ?? "anthropic/claude-haiku-4.5",
+  llmGatewayUrl: () =>
+    process.env.LLM_GATEWAY_URL ?? "https://patunganai-gateway.bhskin.workers.dev/v1/messages",
+  llmGatewayKey: () => required("LLM_GATEWAY_API_KEY", process.env.LLM_GATEWAY_API_KEY),
   tokenEncryptionKey: () => required("TOKEN_ENCRYPTION_KEY", process.env.TOKEN_ENCRYPTION_KEY),
   cronSecret: () => required("CRON_SECRET", process.env.CRON_SECRET),
   sessionSecret: () => required("SESSION_SECRET", process.env.SESSION_SECRET),

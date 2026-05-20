@@ -107,9 +107,10 @@ export default function TermsPage() {
         <span className="num">06</span>AI-assisted analysis
       </h2>
       <p>
-        ThreadLens uses third-party large language models (via OpenRouter) to generate performance summaries and
-        recommendations. Output is provided as informational guidance, not as professional advice. We do not guarantee
-        that recommendations will improve account performance.
+        ThreadLens uses third-party large language models (via an LLM gateway powered by Anthropic Claude) to generate
+        performance summaries, recommendations, and draft post suggestions. Drafts are suggestions only — you review,
+        edit, and decide whether to publish them. Output is provided as informational guidance, not as professional
+        advice. We do not guarantee that recommendations will improve account performance.
       </p>
       <p>
         When you trigger an analysis, post content (text and metrics) is sent to the LLM provider for processing. See

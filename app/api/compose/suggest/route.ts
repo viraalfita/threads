@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getActiveUser } from "@/lib/user";
-import { chat } from "@/lib/llm/openrouter";
+import { chat } from "@/lib/llm/gateway";
 import { buildComposePrompt, parseDrafts } from "@/lib/analysis/prompts";
 import { THREADS_TEXT_LIMIT } from "@/lib/threads/api";
-import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -41,9 +40,7 @@ export async function POST(req: NextRequest) {
     topPosts,
   });
 
-  const model = env.openrouterAnalysisModel();
   const llm = await chat({
-    model,
     messages: [
       { role: "system", content: "Kamu copywriter Threads yang meniru voice creator dengan presisi." },
       { role: "user", content: prompt },
@@ -52,7 +49,7 @@ export async function POST(req: NextRequest) {
     max_tokens: 1200,
   });
 
-  const raw = llm.choices?.[0]?.message?.content ?? "";
+  const raw = llm.text;
   const drafts = parseDrafts(raw).map((d) => d.slice(0, THREADS_TEXT_LIMIT));
 
   if (drafts.length === 0) {
@@ -64,10 +61,10 @@ export async function POST(req: NextRequest) {
     type: "ideas",
     input_context: { brief, count, groundedOn: topPosts.length },
     output: raw,
-    model_used: model,
-    prompt_tokens: llm.usage?.prompt_tokens ?? null,
-    completion_tokens: llm.usage?.completion_tokens ?? null,
+    model_used: llm.model,
+    prompt_tokens: llm.usage.prompt_tokens,
+    completion_tokens: llm.usage.completion_tokens,
   });
 
-  return NextResponse.json({ drafts, model });
+  return NextResponse.json({ drafts, model: llm.model });
 }

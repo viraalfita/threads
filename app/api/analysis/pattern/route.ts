@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getActiveUser } from "@/lib/user";
-import { chat } from "@/lib/llm/openrouter";
+import { chat } from "@/lib/llm/gateway";
 import { buildPatternPrompt } from "@/lib/analysis/prompts";
-import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 90;
@@ -55,9 +54,7 @@ export async function POST(req: NextRequest) {
 
   const prompt = buildPatternPrompt({ periodDays, topPosts: top, bottomPosts: bottom });
 
-  const model = env.openrouterAnalysisModel();
   const llm = await chat({
-    model,
     messages: [
       { role: "system", content: "Kamu content strategist Threads yang detect pattern dengan presisi tinggi." },
       { role: "user", content: prompt },
@@ -66,16 +63,16 @@ export async function POST(req: NextRequest) {
     max_tokens: 1200,
   });
 
-  const output = llm.choices?.[0]?.message?.content ?? "(no output)";
+  const output = llm.text || "(no output)";
   await db.from("llm_analysis").insert({
     user_id: user.id,
     type: "pattern",
     input_context: { periodDays, sampleSize, topCount: top.length, bottomCount: bottom.length },
     output,
-    model_used: model,
-    prompt_tokens: llm.usage?.prompt_tokens ?? null,
-    completion_tokens: llm.usage?.completion_tokens ?? null,
+    model_used: llm.model,
+    prompt_tokens: llm.usage.prompt_tokens,
+    completion_tokens: llm.usage.completion_tokens,
   });
 
-  return NextResponse.json({ output, model, periodDays, sample: { top: top.length, bottom: bottom.length } });
+  return NextResponse.json({ output, model: llm.model, periodDays, sample: { top: top.length, bottom: bottom.length } });
 }
