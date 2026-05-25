@@ -19,6 +19,7 @@ npm install
 cp .env.local.example .env.local        # then fill in the blanks
 openssl rand -hex 32                     # → TOKEN_ENCRYPTION_KEY
 openssl rand -hex 24                     # → CRON_SECRET
+openssl rand -hex 32                     # → MCP_BEARER_TOKEN (only needed for claude.ai Connector)
 ```
 
 ### Supabase
@@ -66,9 +67,41 @@ npm run dev      # http://localhost:3000
 
 Both calls go through the LLM gateway (`POST /api/analysis/{performance,pattern}`) and are persisted to `threadlens.llm_analysis`.
 
+## MCP Connector (claude.ai)
+
+ThreadLens exposes an MCP server at `POST /api/mcp` so the same compose+publish flow is available inside claude.ai's Custom Connectors.
+
+### Setup
+
+1. Generate a bearer token and put it in `.env.local`:
+   ```bash
+   openssl rand -hex 32      # → MCP_BEARER_TOKEN
+   ```
+2. Deploy (Vercel Pro recommended — needs `maxDuration: 120` for thread chains) or expose `localhost:3000` via a tunnel (`cloudflared tunnel`).
+3. In claude.ai → **Settings → Connectors → Add custom connector**:
+   - URL: `https://<your-domain>/api/mcp`
+   - Auth: custom header `Authorization: Bearer <MCP_BEARER_TOKEN>`
+
+### Tools
+
+| Tool | Use |
+|---|---|
+| `list_accounts` | List connected Threads accounts. First account is the default. |
+| `generate_draft` | Draft 1–5 variants grounded in that account's top posts. Default = multi-part thread. |
+| `publish_thread` | Publish a post or thread chain. Side-effecting — claude.ai will ask for approval per call. |
+
+All tools accept an optional `account` parameter (username, no `@`); omitted = default account.
+
+### Resources (read-only inspect)
+
+- `threadlens://{username}/posts/top` — top 10 posts by engagement rate.
+- `threadlens://{username}/posts/recent` — 20 most recent posts.
+
 ## Out of scope (per PRD §7)
 
-`scheduling`, `auto-posting`, `competitor analysis`, `multi-platform`, `mobile native`, `Idea Generator`, `Chat/Ask Anything`. Idea & Chat modes are slotted for a follow-up — see `lib/analysis/prompts.ts` to extend.
+`scheduling`, `competitor analysis`, `multi-platform`, `mobile native`, `Idea Generator`, `Chat/Ask Anything`. Idea & Chat modes are slotted for a follow-up — see `lib/analysis/prompts.ts` to extend.
+
+> **Note:** Auto-posting was originally out of scope. The MCP `publish_thread` tool re-introduces a publish path, but every call is consent-gated by claude.ai's Connector UI, so the human-in-the-loop guarantee is preserved.
 
 ## Project layout
 

@@ -19,4 +19,5 @@ export const env = {
   cronSecret: () => required("CRON_SECRET", process.env.CRON_SECRET),
   sessionSecret: () => required("SESSION_SECRET", process.env.SESSION_SECRET),
   appUrl: () => process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  mcpBearerToken: () => required("MCP_BEARER_TOKEN", process.env.MCP_BEARER_TOKEN),
 };

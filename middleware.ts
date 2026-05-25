@@ -20,6 +20,7 @@ const PUBLIC_EXACT = new Set<string>([
 const PUBLIC_PREFIX = [
   "/api/auth/threads/callback",
   "/api/cron",
+  "/api/mcp", // bearer-auth'd inside the route handler
   "/_next",
   "/favicon",
 ];
