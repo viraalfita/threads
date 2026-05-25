@@ -1,13 +1,17 @@
 import { env } from "../env";
 import { supabaseAdmin } from "../supabase/server";
+import { getToken } from "../oauth/store";
 
 /**
- * Validate the Authorization header against the configured MCP bearer token.
- * Returns the bound admin's id on success, or null on failure.
+ * Validate the Authorization header for an MCP request.
  *
- * Single-user MVP: a single static bearer in env grants full admin scope. The
- * "admin" the token is bound to is just the first admin in the DB — registration
- * auto-closes after the first admin, so this is unambiguous.
+ * Accepts two token types:
+ *  1. OAuth 2.0 access token (issued via /api/oauth/token) — preferred path, used
+ *     by claude.ai Connectors. Looked up in `oauth_tokens`.
+ *  2. Static `MCP_BEARER_TOKEN` from env — fallback for tools that talk MCP
+ *     directly (Claude Code, scripts, curl). Bound to the first admin.
+ *
+ * Returns the resolved adminId on success, or null otherwise.
  */
 export async function authenticateMcpRequest(req: Request): Promise<{ adminId: string } | null> {
   const header = req.headers.get("authorization");
@@ -16,14 +20,29 @@ export async function authenticateMcpRequest(req: Request): Promise<{ adminId: s
   if (!match) return null;
   const presented = match[1].trim();
 
-  let expected: string;
+  // 1. Try OAuth access token first.
   try {
-    expected = env.mcpBearerToken();
+    const token = await getToken(presented);
+    if (token) return { adminId: token.admin_id };
   } catch {
-    return null;
+    // Fall through to static bearer.
   }
-  if (!constantTimeEqual(presented, expected)) return null;
 
+  // 2. Fall back to the static env bearer (single-user dev convenience).
+  let staticToken: string | null = null;
+  try {
+    staticToken = env.mcpBearerToken();
+  } catch {
+    staticToken = null;
+  }
+  if (staticToken && constantTimeEqual(presented, staticToken)) {
+    return resolveDefaultAdmin();
+  }
+
+  return null;
+}
+
+async function resolveDefaultAdmin(): Promise<{ adminId: string } | null> {
   const db = supabaseAdmin();
   const { data, error } = await db
     .from("admins")

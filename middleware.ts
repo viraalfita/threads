@@ -21,6 +21,8 @@ const PUBLIC_PREFIX = [
   "/api/auth/threads/callback",
   "/api/cron",
   "/api/mcp", // bearer-auth'd inside the route handler
+  "/api/oauth", // OAuth endpoints validate themselves (PKCE / DCR open by design)
+  "/.well-known", // public OAuth + protected-resource metadata
   "/_next",
   "/favicon",
 ];

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-export function LoginForm() {
+export function LoginForm({ next = "/dashboard" }: { next?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,8 +24,15 @@ export function LoginForm() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "login_failed");
-      router.replace("/dashboard");
-      router.refresh();
+      // `next` may point to an API route (e.g. /api/oauth/authorize) that the
+      // Next router can't render — use a full navigation so the browser follows
+      // the redirect chain.
+      if (next.startsWith("/api/")) {
+        window.location.assign(next);
+      } else {
+        router.replace(next);
+        router.refresh();
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Login gagal");
     } finally {

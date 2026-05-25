@@ -1,6 +1,7 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { buildMcpServer } from "@/lib/mcp/server";
 import { authenticateMcpRequest } from "@/lib/mcp/auth";
+import { metadataUrl } from "@/lib/oauth/issuer";
 
 // Vercel Hobby caps function duration at 60s. Threads multi-part chains
 // (≤6 parts) typically finish in 15-25s, so this is enough headroom.
@@ -9,6 +10,9 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function unauthorized(): Response {
+  // Per RFC 9728 / MCP auth spec: point clients at the protected-resource
+  // metadata so they can discover the authorization server.
+  const resourceMetadata = metadataUrl("/.well-known/oauth-protected-resource");
   return new Response(
     JSON.stringify({
       jsonrpc: "2.0",
@@ -19,7 +23,7 @@ function unauthorized(): Response {
       status: 401,
       headers: {
         "content-type": "application/json",
-        "www-authenticate": 'Bearer realm="threadlens-mcp"',
+        "www-authenticate": `Bearer realm="threadlens-mcp", resource_metadata="${resourceMetadata}"`,
       },
     },
   );
@@ -41,7 +45,6 @@ async function handle(req: Request): Promise<Response> {
   try {
     return await transport.handleRequest(req);
   } finally {
-    // Best-effort cleanup; transport is per-request.
     transport.close().catch(() => {});
     server.close().catch(() => {});
   }
