@@ -2,7 +2,7 @@ import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mc
 import { z } from "zod";
 import { supabaseAdmin } from "../supabase/server";
 import { chat } from "../llm/gateway";
-import { buildComposePrompt, parseDrafts } from "../analysis/prompts";
+import { buildComposePrompt, buildIdeaTextPrompt, parseDrafts } from "../analysis/prompts";
 import { publishThreadChain, THREADS_TEXT_LIMIT } from "../threads/api";
 import { listAccountsForAdmin, resolveAccount, resolveAccountWithToken } from "./accounts";
 
@@ -167,6 +167,66 @@ export function buildMcpServer(adminId: string): McpServer {
       };
       return {
         content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+      };
+    },
+  );
+
+  server.registerTool(
+    "generate_idea",
+    {
+      title: "Brainstorm thread idea (plain text, no publish)",
+      description:
+        "Generate publish-quality Threads content as PLAIN TEXT — for reading/" +
+        "copying, NOT for the publish pipeline. Output is human-readable text " +
+        "with 'Part 1:', 'Part 2:' markers (no XML tags). This tool does NOT " +
+        "touch any Threads account, does NOT create draft containers, does NOT " +
+        "publish, and does NOT persist anything. It also ignores account voice " +
+        "grounding — purely topic-driven brainstorming. Use this when the user " +
+        "wants to *read* a content idea. Use `generate_draft` (and then " +
+        "`publish_thread`) when the user wants to actually publish.",
+      inputSchema: {
+        brief: z
+          .string()
+          .min(1)
+          .max(1000)
+          .describe("Topic / brief, e.g. 'diet', 'mahasiswa males pake AI'."),
+        thread: z
+          .boolean()
+          .optional()
+          .default(true)
+          .describe("True = multi-part thread chain (default). False = single 500-char post."),
+        count: z
+          .number()
+          .int()
+          .min(1)
+          .max(5)
+          .optional()
+          .describe("How many idea variants. Default 1."),
+      },
+    },
+    async ({ brief, thread = true, count }) => {
+      const effectiveCount = count ?? 1;
+      const prompt = buildIdeaTextPrompt({
+        brief: brief.trim(),
+        count: effectiveCount,
+        thread,
+        charLimit: THREADS_TEXT_LIMIT,
+      });
+      const llm = await chat({
+        messages: [
+          {
+            role: "system",
+            content:
+              "Kamu kreator Threads yang nulis santai dan natural, kayak ngobrol sama temen. " +
+              "Output plain text aja, JANGAN pakai tag XML.",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.9,
+        max_tokens: thread ? 1600 : 1000,
+      });
+      return {
+        content: [{ type: "text", text: llm.text }],
       };
     },
   );

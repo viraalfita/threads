@@ -147,6 +147,52 @@ export function parseDrafts(raw: string): string[][] {
   return drafts;
 }
 
+/**
+ * Plain-text idea generator — like `buildComposePrompt`, but outputs human-
+ * readable text without XML tags. Used by the MCP `generate_idea` tool which
+ * exists to brainstorm WITHOUT touching DB persistence, top-posts grounding,
+ * or any specific account's voice.
+ */
+export interface IdeaTextContext {
+  brief: string;
+  count: number;
+  thread: boolean;
+  charLimit: number;
+}
+
+export function buildIdeaTextPrompt(ctx: IdeaTextContext): string {
+  if (ctx.thread) {
+    return `Kamu kreator Threads yang nulis thread berkualitas — siap publish, hook kuat, voice santai kayak ngobrol sama temen.
+
+TASK: Tulis ${ctx.count} ide thread Threads soal topik "${ctx.brief}". Tiap thread terdiri dari 3-6 part yang nyambung.
+
+${VOICE_RULES}
+
+ATURAN OUTPUT (CRITICAL):
+- Tiap part = maksimal ${ctx.charLimit} karakter (Threads limit). Hitung ketat.
+- Output PLAIN TEXT. JANGAN pakai tag XML <draft> atau <part>. JANGAN heading markdown.
+- Pisahin tiap part dengan baris kosong. Awali tiap part dengan "Part N:" (contoh: "Part 1:").
+- ${ctx.count > 1 ? `Pisahin tiap ide dengan separator "═══ Idea N ═══" di awal blok ide.` : "Langsung tulis Part 1 dst tanpa header."}
+- Konten harus quality "ready to publish" — hook kuat di Part 1, ngalir, CTA/pertanyaan di part terakhir.
+- Bagian terakhir = penutup/CTA/pertanyaan biar orang reply.
+
+Tulis langsung, gak usah preamble atau penjelasan di luar konten.`;
+  }
+
+  return `Kamu kreator Threads yang nulis single post berkualitas — siap publish, hook kuat, voice santai.
+
+TASK: Tulis ${ctx.count} ide single post Threads soal topik "${ctx.brief}".
+
+${VOICE_RULES}
+
+ATURAN OUTPUT (CRITICAL):
+- Tiap post = maksimal ${ctx.charLimit} karakter (Threads limit). Hitung ketat.
+- Output PLAIN TEXT. JANGAN pakai tag XML <draft>. JANGAN heading markdown.
+- ${ctx.count > 1 ? `Pisahin tiap ide dengan separator "═══ Idea N ═══".` : "Langsung tulis post-nya."}
+
+Tulis langsung, gak usah preamble.`;
+}
+
 export interface PatternContext {
   periodDays: number;
   topPosts: Array<{ text: string | null; views: number; engagementRate: number }>;
