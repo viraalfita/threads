@@ -1,5 +1,6 @@
 import { getStatistic, listReplizAccounts, listSchedules } from "./client";
 import { insertPerformanceSnapshot } from "../analytics/store";
+import { loadActiveMap } from "./settings";
 
 export interface SyncResult {
   accountsProcessed: number;
@@ -18,7 +19,11 @@ export async function syncReplizStats(opts?: { accountId?: string }): Promise<Sy
   const result: SyncResult = { accountsProcessed: 0, postsSynced: 0, errors: [] };
 
   const accounts = (await listReplizAccounts("threads")).filter((a) => a.isConnected);
-  const targets = opts?.accountId ? accounts.filter((a) => a.id === opts.accountId) : accounts;
+  // Only sync accounts that are active (opt-in). null map = gating not enabled
+  // yet (migration pending) → sync all, preserving pre-migration behavior.
+  const activeMap = await loadActiveMap();
+  const active = accounts.filter((a) => activeMap === null || activeMap.get(a.id) === true);
+  const targets = opts?.accountId ? active.filter((a) => a.id === opts.accountId) : active;
 
   for (const acct of targets) {
     result.accountsProcessed++;

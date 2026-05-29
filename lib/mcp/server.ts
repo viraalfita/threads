@@ -14,6 +14,7 @@ import {
 import { resolveReplizAccount } from "../repliz/accounts";
 import { critiqueDraft } from "./critic";
 import { getLatestPerformance, getLearnings, saveLearning } from "../analytics/store";
+import { isAccountUsable, loadActiveMap, setAccountActive } from "../repliz/settings";
 
 // Buffer before a "publish now" goes live; Repliz is a scheduler, so immediate
 // posts are scheduled a minute out and processed by Repliz's pipeline.
@@ -53,20 +54,62 @@ export function buildMcpServer(_adminId: string): McpServer {
     {
       title: "List connected Threads accounts",
       description:
-        "Return the Threads accounts connected in Repliz. Use this first if the " +
-        "user references an account by name, to confirm the username is valid. " +
-        "The first connected account is the default when `account` is omitted.",
-      inputSchema: {},
+        "Return the Threads accounts connected in Repliz, each annotated with " +
+        "`is_active` (only active accounts may be scheduled/published — toggle via " +
+        "set_account_active). Use this first if the user references an account by " +
+        "name. Set only_active=true to return just the accounts the autonomous loop " +
+        "should operate on.",
+      inputSchema: {
+        only_active: z
+          .boolean()
+          .optional()
+          .describe("Return only accounts marked active. Default false (show all)."),
+      },
     },
-    async () => {
+    async ({ only_active }) => {
       const accounts = (await listReplizAccounts("threads")).filter((a) => a.isConnected);
-      const summary = accounts.map((a, i) => ({
+      const activeMap = await loadActiveMap();
+      let summary = accounts.map((a, i) => ({
         username: a.username,
         name: a.name,
         account_id: a.id,
         is_default: i === 0,
+        // null map = gating not enabled yet (migration pending)
+        is_active: activeMap === null ? null : activeMap.get(a.id) === true,
       }));
+      if (only_active) summary = summary.filter((a) => a.is_active === true);
       return { content: [{ type: "text", text: JSON.stringify(summary, null, 2) }] };
+    },
+  );
+
+  server.registerTool(
+    "set_account_active",
+    {
+      title: "Activate / deactivate an account",
+      description:
+        "Mark a Threads account active or inactive for the autonomous engine. Only " +
+        "active accounts can be scheduled/published and get stats synced. Use this to " +
+        "opt specific accounts in (the rest stay untouched).",
+      inputSchema: {
+        account: z.string().describe("Threads username (without @)."),
+        active: z.boolean().describe("true = enable for scheduling/publishing; false = disable."),
+      },
+    },
+    async ({ account, active }) => {
+      const acct = await resolveReplizAccount(account);
+      try {
+        await setAccountActive(acct.id, acct.username, active);
+        return {
+          content: [
+            { type: "text", text: JSON.stringify({ ok: true, account: acct.username, is_active: active }) },
+          ],
+        };
+      } catch (e) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Failed to set active (did you run the repliz_accounts migration?): ${e instanceof Error ? e.message : String(e)}` }],
+        };
+      }
     },
   );
 
@@ -215,6 +258,15 @@ export function buildMcpServer(_adminId: string): McpServer {
     | { ok: false; error: string }
   > {
     const acct = await resolveReplizAccount(accountUsername);
+
+    // Opt-in gate: only accounts explicitly marked active can be posted to.
+    if (!(await isAccountUsable(acct.id))) {
+      return {
+        ok: false,
+        error: `Account "${acct.username}" is not active. Enable it with set_account_active before scheduling/publishing.`,
+      };
+    }
+
     const cleaned = segments.map((s) => s.trim()).filter(Boolean);
     if (cleaned.length === 0) return { ok: false, error: "All segments were empty after trimming." };
     const tooLong = cleaned.find((s) => s.length > THREADS_TEXT_LIMIT);
