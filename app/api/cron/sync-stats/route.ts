@@ -3,7 +3,10 @@ import { env } from "@/lib/env";
 import { syncReplizStats } from "@/lib/repliz/sync";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+// Vercel Hobby caps function duration at 60s. The stats sync (one active
+// account, tens of posts) finishes well under this; revisit/paginate if post
+// volume grows large.
+export const maxDuration = 60;
 
 function authorized(req: NextRequest): boolean {
   const expected = env.cronSecret();
