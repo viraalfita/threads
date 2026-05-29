@@ -6,12 +6,14 @@ import { THREADS_TEXT_LIMIT } from "../threads/api";
 import {
   createSchedule,
   deleteSchedule,
+  getStatistic,
   listReplizAccounts,
   listReplizContent,
   listSchedules,
 } from "../repliz/client";
 import { resolveReplizAccount } from "../repliz/accounts";
 import { critiqueDraft } from "./critic";
+import { getLatestPerformance, getLearnings, saveLearning } from "../analytics/store";
 
 // Buffer before a "publish now" goes live; Repliz is a scheduler, so immediate
 // posts are scheduled a minute out and processed by Repliz's pipeline.
@@ -25,18 +27,22 @@ const PUBLISH_NOW_BUFFER_MS = 60 * 1000;
  */
 export function buildMcpServer(_adminId: string): McpServer {
   const server = new McpServer(
-    { name: "threadlens", version: "0.2.0" },
+    { name: "threadlens", version: "0.3.0" },
     {
       capabilities: { tools: {}, resources: {} },
       instructions:
-        "ThreadLens connector — manages Threads accounts via Repliz. Flow: " +
-        "`list_accounts` to see accounts → `generate_draft` to write (or " +
-        "`generate_idea` to brainstorm plain text) → `schedule_post` to queue for " +
-        "a future time, or `publish_thread` to post now. `list_scheduled` shows the " +
-        "queue; `delete_schedule` removes an item. Scheduling/publishing run an " +
-        "automated safety+brand critic and will refuse unsafe content (esp. " +
-        "false medical claims for the women's-health niche). The `account` param " +
-        "selects a Threads account by username; omit to use the default.",
+        "ThreadLens connector — manages Threads accounts via Repliz, for an " +
+        "autonomous weekly content loop.\n\n" +
+        "Weekly cycle: get_learnings (read what worked) → account_summary " +
+        "(review last week) → save_learnings (record insights) → generate_draft " +
+        "(write, grounded in learnings) → schedule_post (queue for the week). " +
+        "list_scheduled/delete_schedule manage the queue; publish_thread posts now; " +
+        "generate_idea is a plain-text brainstorm that touches nothing.\n\n" +
+        "schedule_post and publish_thread run an automated safety+brand critic and " +
+        "REFUSE unsafe content (especially false medical claims for the women's-" +
+        "health niche). Post performance is synced by a daily cron; account_summary " +
+        "and get_post_stats read it. The `account` param selects a Threads account " +
+        "by username; omit to use the default.",
     },
   );
 
@@ -399,6 +405,148 @@ export function buildMcpServer(_adminId: string): McpServer {
           content: [{ type: "text", text: `Delete failed: ${e instanceof Error ? e.message : String(e)}` }],
         };
       }
+    },
+  );
+
+  // -------------------- Analytics + Learning --------------------
+
+  server.registerTool(
+    "account_summary",
+    {
+      title: "Account performance summary",
+      description:
+        "Read synced post performance for an account (latest snapshot per post, " +
+        "sorted by engagement rate). Data is filled by the daily stats cron, so " +
+        "this is a cheap read — use it to see what's working before generating. " +
+        "Returns top + bottom performers and totals over the lookback window.",
+      inputSchema: {
+        account: z.string().optional().describe("Threads username (without @). Omit for default."),
+        period_days: z.number().int().min(1).max(365).optional().describe("Lookback window. Default 30."),
+      },
+    },
+    async ({ account, period_days }) => {
+      const acct = await resolveReplizAccount(account);
+      const rows = await getLatestPerformance(acct.id, period_days ?? 30);
+      if (rows.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { account: acct.username, note: "No synced performance yet (cron may not have run, or no published posts).", posts: [] },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      }
+      const totals = rows.reduce(
+        (acc, r) => ({
+          views: acc.views + r.views,
+          likes: acc.likes + r.likes,
+          replies: acc.replies + r.replies,
+        }),
+        { views: 0, likes: 0, replies: 0 },
+      );
+      const payload = {
+        account: acct.username,
+        period_days: period_days ?? 30,
+        post_count: rows.length,
+        totals,
+        top: rows.slice(0, 5),
+        bottom: rows.slice(-3).reverse(),
+      };
+      return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] };
+    },
+  );
+
+  server.registerTool(
+    "get_post_stats",
+    {
+      title: "Get stats for one post",
+      description:
+        "Fetch live engagement stats for a single published post by its postId " +
+        "(get postId from list_scheduled on succeeded items). Hits Repliz directly " +
+        "for freshness. For a whole-account overview, use account_summary instead.",
+      inputSchema: {
+        post_id: z.string().min(1).describe("The published post id (schedule.postId)."),
+        account: z.string().optional().describe("Threads username (without @). Omit for default."),
+      },
+    },
+    async ({ post_id, account }) => {
+      const acct = await resolveReplizAccount(account);
+      try {
+        const stat = await getStatistic(post_id, acct.id);
+        const er = stat.views > 0
+          ? (stat.likes + stat.replies + stat.reposts + stat.quotes + stat.shares) / stat.views
+          : 0;
+        return {
+          content: [
+            { type: "text", text: JSON.stringify({ account: acct.username, post_id, ...stat, engagement_rate: Number(er.toFixed(4)) }, null, 2) },
+          ],
+        };
+      } catch (e) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Stats unavailable: ${e instanceof Error ? e.message : String(e)}` }],
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_learnings",
+    {
+      title: "Read accumulated learnings",
+      description:
+        "Read the most recent learning entries for an account — the loop's memory " +
+        "of what worked. Call this BEFORE generating a new batch so drafts build on " +
+        "past performance.",
+      inputSchema: {
+        account: z.string().optional().describe("Threads username (without @). Omit for default."),
+        limit: z.number().int().min(1).max(20).optional().describe("How many recent entries. Default 8."),
+      },
+    },
+    async ({ account, limit }) => {
+      const acct = await resolveReplizAccount(account);
+      const learnings = await getLearnings(acct.id, limit ?? 8);
+      return {
+        content: [{ type: "text", text: JSON.stringify({ account: acct.username, learnings }, null, 2) }],
+      };
+    },
+  );
+
+  server.registerTool(
+    "save_learnings",
+    {
+      title: "Save a learning entry",
+      description:
+        "Persist insights after analyzing a week's performance — what topics/hooks/" +
+        "formats worked or didn't. Stored as the loop's memory; read back via " +
+        "get_learnings next cycle. `patterns` is free-form JSON (e.g. " +
+        "{best_hook:'story', best_time:'19:00', avoid:['listicle']}).",
+      inputSchema: {
+        summary: z.string().min(1).max(4000).describe("Plain-language summary of what was learned this cycle."),
+        week: z.string().describe("ISO date for the cycle, e.g. '2026-05-25'."),
+        account: z.string().optional().describe("Threads username (without @). Omit for default."),
+        patterns: z.record(z.string(), z.any()).optional().describe("Structured patterns as JSON (optional)."),
+      },
+    },
+    async ({ summary, week, account, patterns }) => {
+      const acct = await resolveReplizAccount(account);
+      const day = week.slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+        return { isError: true, content: [{ type: "text", text: `Invalid week date: ${week}` }] };
+      }
+      await saveLearning({
+        accountId: acct.id,
+        username: acct.username,
+        week: day,
+        summary,
+        patterns: patterns ?? {},
+      });
+      return { content: [{ type: "text", text: JSON.stringify({ ok: true, account: acct.username, week: day }) }] };
     },
   );
 

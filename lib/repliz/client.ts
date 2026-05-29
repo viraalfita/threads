@@ -26,9 +26,11 @@ export interface ReplizScheduleItem {
   description: string | null;
   topic: string | null;
   type: string;
-  status: string; // "pending" | "published" | "failed" | ...
+  status: string; // "pending" | "success" | "failed" | ...
   scheduleAt: string;
   accountId: string;
+  /** The published post id, set once status === "success". Used for attribution. */
+  postId: string | null;
   replies?: Array<{ description: string | null }>;
 }
 
@@ -172,6 +174,7 @@ export async function listSchedules(opts: {
     status: s.status as string,
     scheduleAt: s.scheduleAt as string,
     accountId: s.accountId as string,
+    postId: s.postId ?? null,
     replies: Array.isArray(s.replies)
       ? s.replies.map((r: any) => ({ description: r.description ?? null }))
       : [],
@@ -180,6 +183,34 @@ export async function listSchedules(opts: {
 
 export async function deleteSchedule(scheduleId: string): Promise<void> {
   await replizFetch<unknown>(`/schedule/${scheduleId}`, { method: "DELETE" });
+}
+
+export interface ReplizStatistic {
+  views: number;
+  likes: number;
+  replies: number;
+  reposts: number;
+  quotes: number;
+  shares: number;
+}
+
+/**
+ * Engagement statistics for a published post. The Repliz endpoint uses singular
+ * field names (like/repost/share); we normalize to plurals. Threads accounts
+ * are supported; some other platforms 403 (caller should handle gracefully).
+ */
+export async function getStatistic(contentId: string, accountId: string): Promise<ReplizStatistic> {
+  const s = await replizFetch<any>(`/content/${contentId}/statistic`, {
+    query: { accountId },
+  });
+  return {
+    views: Number(s.views ?? 0),
+    likes: Number(s.like ?? s.likes ?? 0),
+    replies: Number(s.replies ?? 0),
+    reposts: Number(s.repost ?? s.reposts ?? 0),
+    quotes: Number(s.quotes ?? 0),
+    shares: Number(s.share ?? s.shares ?? 0),
+  };
 }
 
 /** Recent content for an account (no engagement metrics in this endpoint). */
