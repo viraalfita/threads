@@ -29,6 +29,31 @@ export async function isAccountUsable(accountId: string): Promise<boolean> {
   return map.get(accountId) === true;
 }
 
+export interface AccountSetting {
+  account_id: string;
+  username: string | null;
+  is_active: boolean;
+  niche: string | null;
+}
+
+/** Full per-account setting row, or null if unavailable / not yet recorded. */
+export async function getAccountSetting(accountId: string): Promise<AccountSetting | null> {
+  const db = supabaseAdmin();
+  const { data, error } = await db
+    .from("repliz_accounts")
+    .select("account_id, username, is_active, niche")
+    .eq("account_id", accountId)
+    .maybeSingle();
+  if (error) return null;
+  if (!data) return null;
+  return {
+    account_id: data.account_id as string,
+    username: (data.username as string) ?? null,
+    is_active: Boolean(data.is_active),
+    niche: (data.niche as string) ?? null,
+  };
+}
+
 export async function setAccountActive(
   accountId: string,
   username: string | null,

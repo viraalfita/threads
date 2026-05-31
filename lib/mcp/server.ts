@@ -14,6 +14,7 @@ import {
 import { resolveReplizAccount } from "../repliz/accounts";
 import { getLatestPerformance, getLearnings, saveLearning } from "../analytics/store";
 import { isAccountUsable, loadActiveMap, setAccountActive } from "../repliz/settings";
+import { analyzeAndSaveLearnings, runDailyCycle } from "../repliz/cycle";
 
 // Buffer before a "publish now" goes live; Repliz is a scheduler, so immediate
 // posts are scheduled a minute out and processed by Repliz's pipeline.
@@ -586,6 +587,101 @@ export function buildMcpServer(_adminId: string): McpServer {
         patterns: patterns ?? {},
       });
       return { content: [{ type: "text", text: JSON.stringify({ ok: true, account: acct.username, week: day }) }] };
+    },
+  );
+
+  // -------------------- All-in-one orchestrators --------------------
+
+  server.registerTool(
+    "run_daily_cycle",
+    {
+      title: "Run the whole daily content cycle",
+      description:
+        "One-shot daily orchestrator: figures out empty slots for today (skips " +
+        "past + already-filled), generates N drafts in a SINGLE LLM call (count = " +
+        "empty slots), then schedules each via Repliz. The agent doesn't need to " +
+        "reason — just call this once per active account per day. Uses the account's " +
+        "configured niche + recent learnings (recent_topics) as grounding.",
+      inputSchema: {
+        account: z
+          .string()
+          .optional()
+          .describe("Threads username (without @). Omit for default."),
+        count: z
+          .number()
+          .int()
+          .min(1)
+          .max(5)
+          .optional()
+          .describe("Target number of posts for today. Default 3."),
+        slots_wib: z
+          .array(z.string().regex(/^\d{2}:\d{2}$/))
+          .optional()
+          .describe(
+            "Slot times in WIB as 'HH:MM'. Default ['09:00','13:00','17:00']. " +
+              "First N slots are used (N = count).",
+          ),
+        brief: z
+          .string()
+          .optional()
+          .describe(
+            "Optional override for the generation brief. If omitted, a niche-aware " +
+              "default is built from the account's niche + recent learnings.",
+          ),
+      },
+    },
+    async ({ account, count, slots_wib, brief }) => {
+      const result = await runDailyCycle({
+        accountUsername: account,
+        count,
+        slotsWib: slots_wib,
+        brief,
+      });
+      return {
+        isError: result.status === "account_not_active" || result.status === "generate_failed",
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    },
+  );
+
+  server.registerTool(
+    "analyze_and_save_learnings",
+    {
+      title: "Run the weekly learning analysis",
+      description:
+        "One-shot weekly orchestrator: fetches the account's last 7 days of " +
+        "performance + previous learnings, runs LLM analysis SERVER-SIDE to derive " +
+        "patterns (best_hooks, best_formats, best_times_wib, avoid, recent_topics), " +
+        "and persists to repliz_learnings. The agent doesn't need to reason — just " +
+        "call this once per active account per week.",
+      inputSchema: {
+        account: z
+          .string()
+          .optional()
+          .describe("Threads username (without @). Omit for default."),
+        week: z
+          .string()
+          .optional()
+          .describe("ISO date YYYY-MM-DD for the week. Defaults to today (WIB)."),
+        period_days: z
+          .number()
+          .int()
+          .min(1)
+          .max(30)
+          .optional()
+          .describe("Performance window in days. Default 7."),
+      },
+    },
+    async ({ account, week, period_days }) => {
+      const result = await analyzeAndSaveLearnings({
+        accountUsername: account,
+        week,
+        periodDays: period_days,
+      });
+      return {
+        isError: result.status !== "ok",
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
     },
   );
 

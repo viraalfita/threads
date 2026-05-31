@@ -193,6 +193,73 @@ ATURAN OUTPUT (CRITICAL):
 Tulis langsung, gak usah preamble.`;
 }
 
+/**
+ * Weekly learning analysis — takes recent performance + prior learnings and
+ * asks the LLM to derive structured patterns. Output is strict JSON so the
+ * orchestrator can persist it directly.
+ */
+export interface WeeklyAnalysisContext {
+  accountUsername: string;
+  niche: string | null;
+  periodDays: number;
+  posts: Array<{
+    topic: string | null;
+    views: number;
+    likes: number;
+    engagement_rate: number;
+    snapshot_at: string;
+  }>;
+  previousLearnings: Array<{ week: string; summary: string }>;
+}
+
+export function buildWeeklyAnalysisPrompt(ctx: WeeklyAnalysisContext): string {
+  const postLines = ctx.posts
+    .slice(0, 30)
+    .map(
+      (p, i) =>
+        `${i + 1}. [ER=${(p.engagement_rate * 100).toFixed(2)}%, views=${p.views}, likes=${p.likes}] topic="${
+          p.topic ?? "(tanpa topik)"
+        }"`,
+    )
+    .join("\n");
+
+  const learningLines = ctx.previousLearnings
+    .slice(0, 5)
+    .map((l, i) => `${i + 1}. [${l.week}] ${l.summary}`)
+    .join("\n");
+
+  const isCold = ctx.posts.length === 0;
+  const nicheLine = ctx.niche ? `Niche: ${ctx.niche}.` : "Niche: umum.";
+
+  return `Kamu analis konten Threads. Analisa performa minggu lalu untuk akun @${ctx.accountUsername}.
+${nicheLine}
+Periode: ${ctx.periodDays} hari terakhir.
+
+DATA POST (${ctx.posts.length} entri):
+${postLines || "(belum ada data — cold start)"}
+
+LEARNINGS SEBELUMNYA:
+${learningLines || "(belum ada)"}
+
+TASK: ${
+    isCold
+      ? "Cold start — belum ada data. Tulis baseline ringkas: niche, gaya yang akan dicoba, target. patterns kosong (array []) untuk semua."
+      : "Identifikasi pola: hook/format/jam yang konsisten menang vs sepi. Catat 10 topik terbaru biar dihindari minggu depan."
+  }
+
+OUTPUT — STRICT JSON (tanpa teks/markdown/backtick di luar JSON):
+{
+  "summary": "2-4 kalimat ringkas apa yang work, apa yang nggak, kenapa",
+  "patterns": {
+    "best_hooks": ["..."],
+    "best_formats": ["..."],
+    "best_times_wib": ["..."],
+    "avoid": ["..."],
+    "recent_topics": ["..."]
+  }
+}`;
+}
+
 export interface PatternContext {
   periodDays: number;
   topPosts: Array<{ text: string | null; views: number; engagementRate: number }>;
