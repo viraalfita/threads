@@ -63,6 +63,8 @@ export interface ComposeContext {
    * CTAs — e.g. soft-close affiliate POV — aren't overridden).
    */
   persona?: string;
+  /** When true, ask the model to emit a <topic> label per draft (parsed by parseDraftsWithTopics). */
+  withTopic?: boolean;
 }
 
 /** Shared tone guidance so generated posts don't read stiff/corporate. */
@@ -94,6 +96,14 @@ ${ctx.brief ? `BRIEF DARI USER:\n"""\n${ctx.brief}\n"""` : "Tidak ada brief spes
   const closingLine = ctx.persona?.trim()
     ? "- Bagian terakhir = penutup sesuai GAYA NULIS di atas. Kalau gaya itu melarang CTA/ajakan, pakai soft close reflektif — JANGAN maksa CTA atau pertanyaan engagement."
     : "- Bagian terakhir = penutup/CTA/pertanyaan biar orang reply.";
+  // Optional <topic> label per draft, emitted only when withTopic is set.
+  // Topic must be a GENERAL theme/category, not a headline or summary of the post —
+  // so it's usable for grouping & recent-topic dedup across many posts.
+  const topicNote = ctx.withTopic
+    ? " Awali tiap <draft> dengan <topic> berisi KATEGORI UMUM / tema besar konten — 1-3 kata, general (mis. \"siklus haid\", \"kesuburan\", \"herbal\", \"PCOS\"). JANGAN judul spesifik atau ringkasan isi post; cukup temanya aja."
+    : "";
+  const topicTag = ctx.withTopic ? "<topic>kategori umum</topic>" : "";
+  const topicTagShort = ctx.withTopic ? "<topic>...</topic>" : "";
 
   if (ctx.thread) {
     return `Kamu kreator Threads yang nulis thread panjang (beberapa post nyambung, kayak utas/komen-dalam-komen) dengan suara si creator.
@@ -109,9 +119,9 @@ Tulis ${ctx.count} usulan thread yang berbeda. Tiap thread terdiri dari beberapa
 - Antar-bagian harus ngalir/nyambung, satu ide per bagian, jangan diulang-ulang.
 ${closingLine}
 
-FORMAT OUTPUT (WAJIB), tanpa teks lain di luar tag:
-<draft><part>hook bagian 1</part><part>isi bagian 2</part><part>penutup bagian 3</part></draft>
-${ctx.count > 1 ? "<draft><part>...</part><part>...</part></draft>\n...sebanyak " + ctx.count + " draft thread." : ""}`;
+FORMAT OUTPUT (WAJIB), tanpa teks lain di luar tag.${topicNote}
+<draft>${topicTag}<part>hook bagian 1</part><part>isi bagian 2</part><part>penutup bagian 3</part></draft>
+${ctx.count > 1 ? `<draft>${topicTagShort}<part>...</part><part>...</part></draft>\n...sebanyak ${ctx.count} draft thread.` : ""}`;
   }
 
   return `Kamu kreator Threads yang nulis draft post buat dirinya sendiri, dengan suara yang udah kebukti perform.
@@ -126,24 +136,38 @@ Tulis ${ctx.count} draft post Threads yang beda-beda. Aturan:
 - Variasikan angle antar-draft (hook beda, format beda: opini / cerita / list / pertanyaan).
 - JANGAN tambahkan penjelasan, nomor, atau komentar apa pun di luar isi post.
 
-FORMAT OUTPUT (WAJIB), tanpa teks lain di luar tag:
-<draft>isi post draft pertama</draft>
-<draft>isi post draft kedua</draft>
+FORMAT OUTPUT (WAJIB), tanpa teks lain di luar tag.${topicNote}
+<draft>${topicTag}isi post draft pertama</draft>
+<draft>${topicTag}isi post draft kedua</draft>
 ...sebanyak ${ctx.count} draft.`;
 }
 
+/** A parsed draft: its parts plus an optional model-emitted topic label. */
+export interface ParsedDraft {
+  /** Short topic label from a <topic> tag, or null if the model didn't emit one. */
+  topic: string | null;
+  /** Single-post drafts have one part; thread drafts (using <part> tags) have several. */
+  parts: string[];
+}
+
 /**
- * Extract drafts from a model response. Each draft is returned as an array of
- * parts: single-post drafts have one part; thread drafts (using <part> tags)
- * have several. Empty parts are dropped.
+ * Extract drafts from a model response, including an optional <topic> label per
+ * draft. <topic> is stripped from the body; remaining <part> tags become parts
+ * (or the whole body is one part if there are none). Empty parts are dropped.
  */
-export function parseDrafts(raw: string): string[][] {
-  const drafts: string[][] = [];
+export function parseDraftsWithTopics(raw: string): ParsedDraft[] {
+  const drafts: ParsedDraft[] = [];
   const re = /<draft>([\s\S]*?)<\/draft>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(raw)) !== null) {
-    const inner = m[1].trim();
+    let inner = m[1].trim();
     if (!inner) continue;
+    let topic: string | null = null;
+    const tm = inner.match(/<topic>([\s\S]*?)<\/topic>/i);
+    if (tm) {
+      topic = tm[1].trim() || null;
+      inner = inner.replace(tm[0], "").trim();
+    }
     const partRe = /<part>([\s\S]*?)<\/part>/gi;
     const parts: string[] = [];
     let pm: RegExpExecArray | null;
@@ -151,11 +175,21 @@ export function parseDrafts(raw: string): string[][] {
       const t = pm[1].trim();
       if (t) parts.push(t);
     }
-    drafts.push(parts.length > 0 ? parts : [inner]);
+    const finalParts = parts.length > 0 ? parts : inner ? [inner] : [];
+    if (finalParts.length === 0) continue;
+    drafts.push({ topic, parts: finalParts });
   }
   // Fallback: if the model ignored the tags, treat the whole thing as one draft.
-  if (drafts.length === 0 && raw.trim()) drafts.push([raw.trim()]);
+  if (drafts.length === 0 && raw.trim()) drafts.push({ topic: null, parts: [raw.trim()] });
   return drafts;
+}
+
+/**
+ * Back-compat shape: drafts as arrays of parts only (drops topic labels).
+ * Callers that don't need topics (compose UI, autopilot scheduling) keep this.
+ */
+export function parseDrafts(raw: string): string[][] {
+  return parseDraftsWithTopics(raw).map((d) => d.parts);
 }
 
 /**

@@ -1,7 +1,7 @@
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { chat } from "../llm/gateway";
-import { buildComposePrompt, buildIdeaTextPrompt, parseDrafts } from "../analysis/prompts";
+import { buildComposePrompt, buildIdeaTextPrompt, parseDraftsWithTopics } from "../analysis/prompts";
 import { THREADS_TEXT_LIMIT } from "../threads/api";
 import {
   createSchedule,
@@ -119,9 +119,10 @@ export function buildMcpServer(_adminId: string): McpServer {
       description:
         "Generate draft Threads content for the selected account, grounded in its " +
         "recent posts so voice matches. Default is multi-part thread mode. Returns " +
-        "drafts as an array of arrays-of-parts; each part respects the 500-char limit. " +
-        "Drafts are NOT published — call `schedule_post` or `publish_thread` after the " +
-        "content is chosen.",
+        "drafts as an array of { topic, parts }: `topic` is a short model-generated " +
+        "label, `parts` is the thread parts (one element for single posts), each " +
+        "respecting the 500-char limit. Drafts are NOT published — call `schedule_post` " +
+        "or `publish_thread` after the content is chosen.",
       inputSchema: {
         brief: z
           .string()
@@ -176,6 +177,7 @@ export function buildMcpServer(_adminId: string): McpServer {
         charLimit: THREADS_TEXT_LIMIT,
         topPosts,
         persona: persona ?? undefined,
+        withTopic: true,
       });
 
       const llm = await chat({
@@ -191,9 +193,10 @@ export function buildMcpServer(_adminId: string): McpServer {
         max_tokens: thread ? 1600 : 1200,
       });
 
-      const drafts = parseDrafts(llm.text).map((parts) =>
-        parts.map((p) => p.slice(0, THREADS_TEXT_LIMIT)),
-      );
+      const drafts = parseDraftsWithTopics(llm.text).map((d) => ({
+        topic: d.topic,
+        parts: d.parts.map((p) => p.slice(0, THREADS_TEXT_LIMIT)),
+      }));
       if (drafts.length === 0) {
         return {
           isError: true,
