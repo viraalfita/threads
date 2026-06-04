@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portfolio — ThreadLens</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        /* Blush palette — slide chrome */
+        --blush-0: #fcf8f8;
+        --blush-1: #fbefef;
+        --blush-2: #f9dfdf;
+        --blush-3: #f5afaf;
+        --rose-deep: #c25e5e;
+        --rose-700: #8e3a3a;
+
+        /* Warm ink */
+        --ink: #2a1f1f;
+        --ink-soft: #6b5959;
+        --ink-mute: #9a8585;
+        --hair: #ebd9d9;
+
+        /* App accent — ThreadLens is monochrome black with green for "good" */
+        --app-accent: #0a0a0a;
+        --app-accent-7: #000000;
+        --app-accent-50: #fafafa;
+        --app-accent-100: #f4f4f5;
+
+        /* Functional neutrals */
+        --slate50: #f8fafc;
+        --slate100: #f1f5f9;
+        --slate200: #e2e8f0;
+        --slate300: #cbd5e1;
+        --slate400: #94a3b8;
+        --slate500: #64748b;
+        --slate600: #475569;
+        --slate700: #334155;
+        --slate900: #0f172a;
+
+        /* Status tones */
+        --ok: #15803d;
+        --ok-bg: #e8f5ee;
+        --ok-bd: #bbf0c8;
+        --warn: #92400e;
+        --warn-bg: #fef3e2;
+        --warn-bd: #fde68a;
+        --danger: #dc2626;
+        --danger-bg: #fef2f2;
+        --danger-bd: #fecaca;
+        --info: #2563eb;
+        --info-bg: #eff6ff;
+        --info-bd: #bfdbfe;
+      }
+
+      /* Inside the app windows, remap blush accent → real product (near-black). */
+      .win,
+      .chatwin {
+        --rose-deep: var(--app-accent);
+        --rose-700: var(--app-accent-7);
+        --blush-1: var(--app-accent-50);
+        --blush-2: var(--app-accent-100);
+        --blush-3: var(--app-accent);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        background: #2a2222;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        color: var(--ink);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+        padding: 46px 16px 60px;
+        min-height: 100vh;
+      }
+      .hint {
+        color: #a89696;
+        font-size: 13px;
+        text-align: center;
+        letter-spacing: 0.2px;
+      }
+      .hint b {
+        color: #e9d9d9;
+        font-weight: 600;
+      }
+
+      .slide {
+        width: 1280px;
+        height: 720px;
+        position: relative;
+        overflow: hidden;
+        border-radius: 16px;
+        background: var(--blush-0);
+        color: var(--ink);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+      }
+
+      /* Decorative quiet background */
+      .bg-arc {
+        position: absolute;
+        width: 880px;
+        height: 880px;
+        border-radius: 50%;
+        right: -340px;
+        top: -360px;
+        background: var(--blush-1);
+        z-index: 0;
+      }
+      .bg-arc2 {
+        position: absolute;
+        width: 520px;
+        height: 520px;
+        border-radius: 50%;
+        left: -260px;
+        bottom: -280px;
+        background: var(--blush-1);
+        z-index: 0;
+        opacity: 0.7;
+      }
+      .bg-dots {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        opacity: 0.55;
+        background-image: radial-gradient(
+          rgba(194, 94, 94, 0.1) 1px,
+          transparent 1px
+        );
+        background-size: 28px 28px;
+        mask-image: linear-gradient(
+          135deg,
+          transparent 0%,
+          #000 30%,
+          #000 70%,
+          transparent 100%
+        );
+      }
+
+      .wrap {
+        position: relative;
+        z-index: 2;
+        height: 100%;
+        padding: 42px 56px 60px;
+      }
+
+      /* ---------------------- HEAD ---------------------- */
+      .head {
+        width: 440px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 2.6px;
+        text-transform: uppercase;
+        color: var(--rose-deep);
+      }
+      .eyebrow::before {
+        content: "";
+        width: 22px;
+        height: 1.5px;
+        background: var(--blush-3);
+        display: inline-block;
+      }
+
+      h1 {
+        font-family: "Fraunces", serif;
+        font-weight: 700;
+        font-size: 54px;
+        line-height: 1;
+        letter-spacing: -1.2px;
+        margin: 12px 0 8px;
+        color: var(--ink);
+      }
+      h1 .dot {
+        color: var(--blush-3);
+      }
+      .tagline {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink-soft);
+        line-height: 1.5;
+        margin-bottom: 18px;
+        max-width: 340px;
+      }
+
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-top: 1px solid var(--hair);
+        border-bottom: 1px solid var(--hair);
+        padding: 12px 0;
+        margin-bottom: 14px;
+      }
+      .meta .cell {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        position: relative;
+      }
+      .meta .cell + .cell {
+        padding-left: 14px;
+      }
+      .meta .cell + .cell::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 2px;
+        bottom: 2px;
+        width: 1px;
+        background: var(--hair);
+      }
+      .meta .lab {
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 1.6px;
+        text-transform: uppercase;
+        color: var(--rose-deep);
+      }
+      .meta .val {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--ink);
+        line-height: 1.2;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .chip {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--blush-1);
+        border: 1px solid var(--blush-2);
+        color: var(--rose-700);
+      }
+
+      .head .col-concept {
+        margin-top: 18px;
+        display: flex;
+        flex-direction: column;
+      }
+      .head .col-link {
+        margin-top: 16px;
+      }
+      .pub-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        width: fit-content;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--rose-deep);
+        text-decoration: none;
+        border-bottom: 1px solid var(--blush-3);
+        padding-bottom: 2px;
+      }
+      .pub-link .ico {
+        width: 12px;
+        height: 12px;
+        stroke: var(--rose-deep);
+      }
+      .body-text {
+        position: absolute;
+        left: 56px;
+        right: 56px;
+        bottom: 56px;
+        display: block;
+      }
+      .body-text .col-story {
+        display: flex;
+        flex-direction: column;
+      }
+      .col-story .story + .story {
+        margin-top: 9px;
+      }
+
+      .section-lab {
+        font-size: 9.5px;
+        font-weight: 800;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--rose-deep);
+        margin-bottom: 8px;
+      }
+      .concept {
+        font-family: "Fraunces", serif;
+        font-weight: 500;
+        font-size: 19px;
+        line-height: 1.32;
+        letter-spacing: -0.3px;
+        color: var(--ink);
+      }
+      .concept .hl {
+        background: linear-gradient(transparent 62%, var(--blush-3) 62%);
+        padding: 0 3px;
+        color: var(--ink);
+      }
+      .story {
+        font-size: 11px;
+        line-height: 1.65;
+        color: var(--ink-soft);
+      }
+      .story b {
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      .ico {
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex: none;
+      }
+
+      /* Footer */
+      .pgfoot {
+        position: absolute;
+        bottom: 18px;
+        left: 56px;
+        right: 56px;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 10px;
+        color: var(--ink-mute);
+        letter-spacing: 0.4px;
+      }
+      .pgfoot .left-foot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .pgfoot .mark {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--blush-3);
+      }
+      .pgfoot b {
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      @media print {
+        body {
+          background: #fff;
+          gap: 0;
+          padding: 0;
+        }
+        .hint {
+          display: none;
+        }
+        .slide {
+          box-shadow: none;
+          border-radius: 0;
+        }
+        *,
+        *::before,
+        *::after {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+        @page {
+          size: 1280px 720px;
+          margin: 0;
+        }
+      }
+
+      /* Solo-render mode used by export-mockups.sh — strips hint + page chrome
+         so the slide can be captured cleanly against a transparent background. */
+      body.solo {
+        background: transparent !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        min-height: 0 !important;
+      }
+      body.solo .hint { display: none !important; }
+      body.solo .slide { box-shadow: none !important; }
+    </style>
+  </head>
+  <body>
+    <div class="hint">
+      📐 Single-slide portfolio · blush palette ·
+      <b>⌘P → Save as PDF</b> (Landscape, margin None)
+    </div>
+
+    <section class="slide">
+      <div class="bg-arc"></div>
+      <div class="bg-arc2"></div>
+      <div class="bg-dots"></div>
+
+      <div class="wrap">
+        <!-- ============== HEAD (top-left) ============== -->
+        <div class="head">
+          <span class="eyebrow">Portfolio · Tech / IT</span>
+
+          <h1>ThreadLens<span class="dot">.</span></h1>
+          <p class="tagline">
+            An analytics layer for Threads — track what's working, then draft
+            and publish your next post with AI help.
+          </p>
+
+          <div class="meta">
+            <div class="cell">
+              <span class="lab">Year</span><span class="val">2026</span>
+            </div>
+            <div class="cell">
+              <span class="lab">Role</span
+              ><span class="val">Full-Stack Dev</span>
+            </div>
+            <div class="cell">
+              <span class="lab">Type</span><span class="val">Personal MVP</span>
+            </div>
+          </div>
+
+          <div class="chips">
+            <span class="chip">Next.js 14</span>
+            <span class="chip">Supabase</span>
+            <span class="chip">Threads API</span>
+            <span class="chip">LLM Gateway</span>
+            <span class="chip">Tailwind</span>
+          </div>
+
+          <div class="col-concept">
+            <div class="section-lab">Concept</div>
+            <p class="concept">
+              Turn raw Threads metrics into
+              <span class="hl">clear, actionable insights</span> — see what
+              drives engagement, then draft and publish your next post in one
+              place.
+            </p>
+          </div>
+        </div>
+
+        <!-- ============== BODY TEXT (bottom, wide) ============== -->
+        <div class="body-text">
+          <div class="col-story">
+            <div class="section-lab">The Story</div>
+
+            <p class="story">
+              I built ThreadLens after realizing that social media analytics
+              often show
+              <b>what</b> happened — views, likes, and replies — but rarely
+              explain <b>why</b> certain content performs better than others. As
+              more posts accumulated, identifying patterns, understanding
+              audience response, and generating new ideas became increasingly
+              difficult. I wanted to create a workflow that connects reflection
+              and creation in one place, structured as
+              <b>Sync → Analytics → AI Insight → Compose</b>, so creators can
+              learn from past content before writing the next one.
+            </p>
+
+            <p class="story">
+              I developed the platform using <b>Next.js and Supabase</b>,
+              integrating the Threads Graph API for content synchronization and
+              AI-assisted insight generation. The system analyzes historical
+              posts to identify recurring patterns, highlight high-performing
+              content, and assist users in drafting new posts while still
+              keeping the creator fully in control of the final result. During
+              development, I also migrated the backend architecture from
+              PocketBase to Supabase to improve scalability, security, and data
+              structure management.
+            </p>
+
+            <p class="story">
+              One of the biggest challenges was navigating
+              <b>Meta's App Review process</b> to enable publishing access for
+              users outside the testing environment. Through this project, I
+              learned that building products is not only about writing code, but
+              also about understanding real user workflows, platform
+              limitations, and designing experiences that genuinely help people
+              think and create more effectively.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="pgfoot">
+        <div class="left-foot">
+          <span class="mark"></span>Portfolio submission for Apple Developer
+          Academy
+        </div>
+        <div>Portfolio · 03 / 03</div>
+      </div>
+    </section>
+    <script>
+      // Solo render: ?solo=1 strips the page hint + slide shadow so
+      // export-mockups.sh can capture the slide cleanly.
+      if (new URLSearchParams(location.search).get("solo") === "1") {
+        document.body.classList.add("solo");
+      }
+    </script>
+  </body>
+</html>

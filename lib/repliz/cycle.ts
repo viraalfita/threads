@@ -7,6 +7,7 @@ import {
 import { THREADS_TEXT_LIMIT } from "../threads/api";
 import { createSchedule, listSchedules } from "./client";
 import { resolveReplizAccount } from "./accounts";
+import { getAccountPersona } from "../mcp/personas";
 import { getAccountSetting, isAccountUsable } from "./settings";
 import {
   getLatestPerformance,
@@ -102,9 +103,10 @@ export async function runDailyCycle(input: {
   const learnings = await getLearnings(acct.id, 5).catch(() => [] as LearningRow[]);
   const learningContext = collectLearningContext(learnings);
   const niche = setting?.niche ?? null;
+  const persona = getAccountPersona(acct.username);
   const brief = (input.brief?.trim() ?? "").length > 0
     ? input.brief!
-    : defaultBrief({ niche, count: empty.length, context: learningContext });
+    : defaultBrief({ niche, count: empty.length, context: learningContext, hasPersona: !!persona });
 
   const prompt = buildComposePrompt({
     brief,
@@ -112,6 +114,7 @@ export async function runDailyCycle(input: {
     thread: true,
     charLimit: THREADS_TEXT_LIMIT,
     topPosts: [], // grounding via learnings is in the brief itself
+    persona: persona ?? undefined,
   });
 
   let drafts: string[][];
@@ -377,6 +380,8 @@ function defaultBrief(opts: {
   niche: string | null;
   count: number;
   context: LearningContext;
+  /** When the account has a voice persona, it owns claim/closing rules — skip the generic medical guard. */
+  hasPersona?: boolean;
 }): string {
   const { latestSummary, bestHooks, bestFormats, bestTimesWib, avoid, recentTopics } = opts.context;
   const nicheLine = opts.niche
@@ -408,8 +413,14 @@ function defaultBrief(opts: {
 
   lines.push(
     "Tiap thread beda angle (cerita pribadi, mitos vs fakta, fakta surprising, momen relate, Q&A reflektif, dll). Tone santai kayak ngobrol temen, vulnerable, relate. HINDARI listicle kaku & bahasa motivator.",
-    "Untuk niche medis/kesehatan: framing edukasi, sisipkan disclaimer halus \"kalau ragu konsul ke dokter\". JANGAN klaim sembuh, JANGAN diagnosis, JANGAN nyuruh skip dokter.",
   );
+  // Persona-driven accounts define their own claim/closing rules (incl. health
+  // framing); the generic medical guard would fight them, so only add it otherwise.
+  if (!opts.hasPersona) {
+    lines.push(
+      "Untuk niche medis/kesehatan: framing edukasi, sisipkan disclaimer halus \"kalau ragu konsul ke dokter\". JANGAN klaim sembuh, JANGAN diagnosis, JANGAN nyuruh skip dokter.",
+    );
+  }
 
   return lines.join("\n");
 }

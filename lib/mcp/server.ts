@@ -12,6 +12,7 @@ import {
   listSchedules,
 } from "../repliz/client";
 import { resolveReplizAccount } from "../repliz/accounts";
+import { getAccountPersona } from "./personas";
 import { getLatestPerformance, getLearnings, saveLearning } from "../analytics/store";
 import { isAccountUsable, loadActiveMap, setAccountActive } from "../repliz/settings";
 import { analyzeAndSaveLearnings, runDailyCycle } from "../repliz/cycle";
@@ -150,17 +151,22 @@ export function buildMcpServer(_adminId: string): McpServer {
     async ({ brief, account, thread = true, count }) => {
       const acct = await resolveReplizAccount(account);
       const effectiveCount = count ?? (thread ? 2 : 3);
+      const persona = getAccountPersona(acct.username);
 
       // Voice grounding: recent Repliz content text (no engagement metrics here).
+      // Skipped for persona accounts — the persona carries its own voice example,
+      // and old off-persona posts would only pull the voice the wrong way.
       let topPosts: Array<{ text: string | null; views: number; engagementRate: number }> = [];
-      try {
-        const { items } = await listReplizContent(acct.id);
-        topPosts = items
-          .filter((c) => (c.description ?? "").trim().length > 0)
-          .slice(0, 8)
-          .map((c) => ({ text: c.description, views: 0, engagementRate: 0 }));
-      } catch {
-        // Grounding is best-effort; fall back to no examples.
+      if (!persona) {
+        try {
+          const { items } = await listReplizContent(acct.id);
+          topPosts = items
+            .filter((c) => (c.description ?? "").trim().length > 0)
+            .slice(0, 8)
+            .map((c) => ({ text: c.description, views: 0, engagementRate: 0 }));
+        } catch {
+          // Grounding is best-effort; fall back to no examples.
+        }
       }
 
       const prompt = buildComposePrompt({
@@ -169,6 +175,7 @@ export function buildMcpServer(_adminId: string): McpServer {
         thread,
         charLimit: THREADS_TEXT_LIMIT,
         topPosts,
+        persona: persona ?? undefined,
       });
 
       const llm = await chat({
@@ -236,6 +243,7 @@ export function buildMcpServer(_adminId: string): McpServer {
         count: effectiveCount,
         thread,
         charLimit: THREADS_TEXT_LIMIT,
+        persona: getAccountPersona() ?? undefined,
       });
       const llm = await chat({
         messages: [

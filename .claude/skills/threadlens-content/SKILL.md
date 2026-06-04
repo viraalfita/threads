@@ -1,6 +1,6 @@
 ---
 name: threadlens-content
-description: Use when the user wants to draft, edit, inspect, or publish Threads content for ThreadLens-connected accounts (Bhskin skincare, Hureo HRIS, or others). Triggers on Indonesian phrases like "buatin konten threads", "post thread tentang X", "draft storytelling", "publish ke akun Y", "konten bahaya X", "ide post untuk hureo/bhskin", or any mention of Bhskin / Hureo HRIS on Threads.
+description: Use when the user wants to draft, edit, inspect, or publish Threads content for ThreadLens-connected accounts (Bhskin = jualan Miscella-G/Miscella-V, Hureo HRIS, or others). Triggers on Indonesian phrases like "buatin konten threads", "post thread tentang X", "draft storytelling", "publish ke akun Y", "konten bahaya X", "konten miscella", "ide post untuk hureo/bhskin", or any mention of Bhskin / Miscella-G / Miscella-V / Hureo HRIS on Threads.
 ---
 
 # ThreadLens Content Workflow
@@ -23,7 +23,7 @@ Resources: `threadlens://{username}/posts/top`, `threadlens://{username}/posts/r
 ## Step 1 — Pilih akun
 
 Akun yang biasanya connected:
-- `advertiserbhskin03` — **Bhskin** (skincare brand, audiens perempuan 20-30an, suka konten edukasi skincare + relate skin concern)
+- `advertiserbhskin03` — **Bhskin / Miscella-G** (jualan suplemen herbal **Miscella-V** untuk siklus haid/PCOS/kesuburan. Audiens perempuan 20-30an. **Gaya = POV customer**, bukan brand. Lihat `miscella-g-framework.md` untuk format + voice lengkap)
 - `hureo.hris` — **Hureo HRIS** (software HR, audiens HR pro & business owner 25-45)
 
 Aturan:
@@ -76,10 +76,13 @@ Pattern yang harus dihindari:
 
 ### Voice per akun (nuance)
 
-**Bhskin (advertiserbhskin03)**:
-- Lebih warm, relatable, sedikit playful.
-- Topik aman: skin concern (jerawat, kusam, bruntusan), routine, ingredient explainer, mitos vs fakta skincare, relate-able skin journey.
-- Hindari klaim medis yang gak ada bukti, jangan diagnose.
+**Bhskin / Miscella-G (advertiserbhskin03)** — jualan suplemen herbal **Miscella-V**:
+- **Voice = POV customer, BUKAN brand.** Nulis kayak orang yang udah nyoba dan cerita pengalaman, bukan caption brand / endorser. **Lowercase, conversational.**
+- **WAJIB baca [`miscella-g-framework.md`](miscella-g-framework.md)** sebelum draft — di situ ada 5 format rotasi, 3 angle (science-back / religi / short punch), alur thread panjang, variasi durasi & closing, dan contoh konten approved. Tiru gaya dari contoh approved.
+- **No hard CTA, no link.** Link/ajakan beli = keliatan affiliate = trust ilang. Produk masuk 1 kalimat sebagai "kesimpulan perjalanan riset", sebut nama produk aja, audience cari sendiri.
+- Topik: siklus haid gak teratur, PCOS, kesuburan, herbal (kunyit/serai/kurkumin). **Klaim kesehatan boleh** tapi selalu di-frame sebagai **pengalaman pribadi + humble** ("cocok-cocokan", "entah kebetulan atau ngaruh"), JANGAN klaim absolut / janji sembuh / diagnose orang lain.
+- Jangan list semua bahan produk. Pakai "Tuhan" bukan "Allah".
+- **OVERRIDE aturan umum**: untuk Miscella, bagian terakhir thread = **soft close reflektif** (rotate dari framework), **BUKAN** CTA keras / pertanyaan ajakan engagement.
 
 **Hureo (hureo.hris)**:
 - Sedikit lebih serius tapi tetep santai. Audiens HR/business owner.
@@ -125,7 +128,7 @@ Pakai juga buat self-check: setelah generate, bandingin draft sama top posts. Ka
 - **Count parts mismatch** → kalau thread terlalu panjang (>7 parts), saran pecah jadi 2 thread terpisah atau ringkas.
 - **500-char limit per part** → trim, jangan truncate mid-kalimat. Kalau gak muat, pecah jadi 2 part.
 - **Brand-mentioning** → jangan plug Bhskin/Hureo tiap post. Brand muncul natural saat konteks butuh, bukan promosi.
-- **Topik sensitif (medis, hukum, dll)** → jangan kasih klaim spesifik yang butuh sumber. Frame sebagai "denger-denger / pengalaman" atau "menurut studi X" (kalau ada).
+- **Topik sensitif (medis, hukum, dll)** → jangan kasih klaim spesifik yang butuh sumber. Frame sebagai "denger-denger / pengalaman" atau "menurut studi X" (kalau ada). **Pengecualian Bhskin/Miscella-G**: klaim kesehatan herbal boleh, tapi tetap di-frame pengalaman pribadi + humble (lihat `miscella-g-framework.md`), bukan janji sembuh.
 
 ## Example interactions
 
@@ -142,12 +145,14 @@ Pakai juga buat self-check: setelah generate, bandingin draft sama top posts. Ka
 **Wrong**: langsung `publish_thread`.
 **Right**: restate konten draft #2 dengan jelas, "Oke draft #2 ya, ini final-nya:\n[content]\nConfirm publish?". Tunggu "yes/gas/ok".
 
-### User: "draft thread tentang skin barrier rusak"
+### User: "draft konten miscella angle science-back tentang haid telat"
 
 **Right**:
-1. Optionally read `threadlens://advertiserbhskin03/posts/top` buat liat pola hook yang work.
-2. `generate_draft({ brief: "skin barrier rusak", account: "advertiserbhskin03", thread: true, count: 2 })`.
-3. Tampilkan drafts, tunggu pilih.
+1. Baca [`miscella-g-framework.md`](miscella-g-framework.md) — ambil alur thread panjang + rules (lowercase, POV customer, no hard CTA, soft close).
+2. Optionally read `threadlens://advertiserbhskin03/posts/top` buat liat pola hook yang work.
+3. Inject framework ke brief (sampai 8000 char): `generate_draft({ brief: "<angle science-back, alur 5 utas, rules Miscella, contoh approved KONTEN 1>", account: "advertiserbhskin03", thread: true, count: 5 })`.
+4. Tampilkan drafts, cek vs contoh approved, tunggu pilih.
+5. **Rotate** format/angle/durasi/closing antar konten — jangan repetitif.
 
 ### User: "kasih idea content storytelling chaining seputar diet"
 

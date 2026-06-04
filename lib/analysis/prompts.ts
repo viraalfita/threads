@@ -57,6 +57,12 @@ export interface ComposeContext {
   thread: boolean;
   /** A few of the user's best-performing posts, for voice + topic grounding. */
   topPosts: Array<{ text: string | null; views: number; engagementRate: number }>;
+  /**
+   * Per-account voice/persona override. When set, it REPLACES the generic
+   * VOICE_RULES and relaxes the hardcoded CTA closing (so personas that forbid
+   * CTAs — e.g. soft-close affiliate POV — aren't overridden).
+   */
+  persona?: string;
 }
 
 /** Shared tone guidance so generated posts don't read stiff/corporate. */
@@ -84,19 +90,24 @@ export function buildComposePrompt(ctx: ComposeContext): string {
   }
 ${ctx.brief ? `BRIEF DARI USER:\n"""\n${ctx.brief}\n"""` : "Tidak ada brief spesifik — usulkan ide post baru yang sejalan dengan topik & gaya yang sudah perform."}`;
 
+  const voiceBlock = ctx.persona?.trim() ? ctx.persona.trim() : VOICE_RULES;
+  const closingLine = ctx.persona?.trim()
+    ? "- Bagian terakhir = penutup sesuai GAYA NULIS di atas. Kalau gaya itu melarang CTA/ajakan, pakai soft close reflektif — JANGAN maksa CTA atau pertanyaan engagement."
+    : "- Bagian terakhir = penutup/CTA/pertanyaan biar orang reply.";
+
   if (ctx.thread) {
     return `Kamu kreator Threads yang nulis thread panjang (beberapa post nyambung, kayak utas/komen-dalam-komen) dengan suara si creator.
 
 ${grounding}
 
-${VOICE_RULES}
+${voiceBlock}
 
 TASK:
 Tulis ${ctx.count} usulan thread yang berbeda. Tiap thread terdiri dari beberapa BAGIAN nyambung (3-6 bagian):
 - Bagian pertama = hook kuat yang berdiri sendiri dan bikin penasaran.
 - Tiap bagian maksimal ${ctx.charLimit} karakter. Hitung ketat.
 - Antar-bagian harus ngalir/nyambung, satu ide per bagian, jangan diulang-ulang.
-- Bagian terakhir = penutup/CTA/pertanyaan biar orang reply.
+${closingLine}
 
 FORMAT OUTPUT (WAJIB), tanpa teks lain di luar tag:
 <draft><part>hook bagian 1</part><part>isi bagian 2</part><part>penutup bagian 3</part></draft>
@@ -107,7 +118,7 @@ ${ctx.count > 1 ? "<draft><part>...</part><part>...</part></draft>\n...sebanyak 
 
 ${grounding}
 
-${VOICE_RULES}
+${voiceBlock}
 
 TASK:
 Tulis ${ctx.count} draft post Threads yang beda-beda. Aturan:
@@ -158,23 +169,30 @@ export interface IdeaTextContext {
   count: number;
   thread: boolean;
   charLimit: number;
+  /** Per-account voice/persona override (see buildComposePrompt). */
+  persona?: string;
 }
 
 export function buildIdeaTextPrompt(ctx: IdeaTextContext): string {
+  const voiceBlock = ctx.persona?.trim() ? ctx.persona.trim() : VOICE_RULES;
+  const ideaClosing = ctx.persona?.trim()
+    ? "- Penutup ngikut GAYA NULIS di atas. Kalau gaya itu melarang CTA/ajakan, pakai soft close reflektif — JANGAN maksa CTA atau pertanyaan engagement."
+    : "- Bagian terakhir = penutup/CTA/pertanyaan biar orang reply.";
+
   if (ctx.thread) {
     return `Kamu kreator Threads yang nulis thread berkualitas — siap publish, hook kuat, voice santai kayak ngobrol sama temen.
 
 TASK: Tulis ${ctx.count} ide thread Threads soal topik "${ctx.brief}". Tiap thread terdiri dari 3-6 part yang nyambung.
 
-${VOICE_RULES}
+${voiceBlock}
 
 ATURAN OUTPUT (CRITICAL):
 - Tiap part = maksimal ${ctx.charLimit} karakter (Threads limit). Hitung ketat.
 - Output PLAIN TEXT. JANGAN pakai tag XML <draft> atau <part>. JANGAN heading markdown.
 - Pisahin tiap part dengan baris kosong. Awali tiap part dengan "Part N:" (contoh: "Part 1:").
 - ${ctx.count > 1 ? `Pisahin tiap ide dengan separator "═══ Idea N ═══" di awal blok ide.` : "Langsung tulis Part 1 dst tanpa header."}
-- Konten harus quality "ready to publish" — hook kuat di Part 1, ngalir, CTA/pertanyaan di part terakhir.
-- Bagian terakhir = penutup/CTA/pertanyaan biar orang reply.
+- Konten harus quality "ready to publish" — hook kuat di Part 1, ngalir.
+${ideaClosing}
 
 Tulis langsung, gak usah preamble atau penjelasan di luar konten.`;
   }
@@ -183,7 +201,7 @@ Tulis langsung, gak usah preamble atau penjelasan di luar konten.`;
 
 TASK: Tulis ${ctx.count} ide single post Threads soal topik "${ctx.brief}".
 
-${VOICE_RULES}
+${voiceBlock}
 
 ATURAN OUTPUT (CRITICAL):
 - Tiap post = maksimal ${ctx.charLimit} karakter (Threads limit). Hitung ketat.

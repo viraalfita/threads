@@ -7,7 +7,9 @@
       "Bash(echo \"CRON_SECRET=$\\(openssl rand -hex 24\\)\")",
       "Bash(vercel --version)",
       "Bash(git remote *)",
-      "Bash(/usr/bin/ls /Users/viraalfita/threads/app/dashboard/ /Users/viraalfita/threads/app/posts/ /Users/viraalfita/threads/app/analysis/ /Users/viraalfita/threads/app/settings/)"
+      "Bash(/usr/bin/ls /Users/viraalfita/threads/app/dashboard/ /Users/viraalfita/threads/app/posts/ /Users/viraalfita/threads/app/analysis/ /Users/viraalfita/threads/app/settings/)",
+      "Read(//private/tmp/**)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(f\\\\\"{a['username']:25} id={a['id']} connected={a['isConnected']}\\\\\"\\) for a in d['docs']]; print\\('total threads:', d['totalDocs']\\)\")"
     ]
   }
 }
